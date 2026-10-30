@@ -1,0 +1,74 @@
+{{define "content"}}
+<section class="bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-500 text-white">
+  <div class="container-x grid items-center gap-8 py-12 md:grid-cols-2 md:py-20">
+    <div>
+      <p class="inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">Cash on Delivery · All Bangladesh</p>
+      <h1 class="mt-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">{{.Store.Get "hero_title"}}</h1>
+      <p class="mt-4 max-w-lg text-base text-brand-50 sm:text-lg">{{.Store.Get "hero_subtitle"}}</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="/products" class="btn bg-white text-brand-700 hover:bg-brand-50">Shop now</a>
+        <a href="/offers" class="btn border border-white/40 text-white hover:bg-white/10">View offers</a>
+      </div>
+    </div>
+    {{if .Hero}}
+    <div class="hidden grid-cols-2 gap-3 md:grid">
+      {{range .Hero}}
+      <a href="/product/{{.Slug}}" class="overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/20 transition hover:ring-white/50">
+        {{if .ImageKey}}<img src="{{thumb .ImageKey}}" alt="{{.Name}}" class="aspect-square w-full object-cover" width="480" height="480">{{end}}
+      </a>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+</section>
+
+<section class="border-b border-slate-200 bg-white">
+  <div class="container-x grid grid-cols-2 gap-4 py-5 text-sm sm:grid-cols-4">
+    <div class="flex items-center gap-2"><span class="text-xl">🚚</span><span><b class="block text-slate-900">Nationwide delivery</b><span class="text-slate-500">Fast &amp; reliable</span></span></div>
+    <div class="flex items-center gap-2"><span class="text-xl">💵</span><span><b class="block text-slate-900">Cash on delivery</b><span class="text-slate-500">Pay when you receive</span></span></div>
+    <div class="flex items-center gap-2"><span class="text-xl">↩️</span><span><b class="block text-slate-900">Easy returns</b><span class="text-slate-500">See our policy</span></span></div>
+    <div class="flex items-center gap-2"><span class="text-xl">📞</span><span><b class="block text-slate-900">Support</b><span class="text-slate-500">{{.Store.Get "store_phone"}}</span></span></div>
+  </div>
+</section>
+
+<div class="container-x space-y-14 py-10">
+  {{range .Sections}}
+    {{if eq .Key "campaigns"}}
+      {{if .Campaigns}}
+      <section>
+        <div class="mb-5 flex items-end justify-between"><h2 class="section-title">{{.Title}}</h2><a href="{{.Link}}" class="text-sm font-semibold text-brand-700 hover:text-brand-800">All offers →</a></div>
+        <div class="grid gap-4 md:grid-cols-2">
+          {{range .Campaigns}}{{template "campaign_card" .}}{{end}}
+        </div>
+      </section>
+      {{end}}
+    {{else if eq .Key "categories"}}
+      {{if .Categories}}
+      <section>
+        <h2 class="section-title">{{.Title}}</h2>
+        <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {{range .Categories}}
+          <a href="/category/{{.Slug}}" class="group card flex items-center gap-3 p-4 transition hover:border-brand-300 hover:shadow-md">
+            {{if .ImageKey}}<img src="{{thumb .ImageKey}}" alt="" class="h-12 w-12 rounded-lg object-cover" loading="lazy">
+            {{else}}<span class="grid h-12 w-12 place-items-center rounded-lg bg-brand-50 text-lg font-black text-brand-700">{{firstLetter .Name}}</span>{{end}}
+            <span>
+              <span class="block font-semibold text-slate-900 group-hover:text-brand-700">{{.Name}}</span>
+              {{if .Children}}<span class="text-xs text-slate-500">{{len .Children}} subcategories</span>{{end}}
+            </span>
+          </a>
+          {{end}}
+        </div>
+      </section>
+      {{end}}
+    {{else if .Products}}
+      <section>
+        <div class="mb-5 flex items-end justify-between">
+          <h2 class="section-title">{{.Title}}</h2>
+          <a href="{{.Link}}" class="text-sm font-semibold text-brand-700 hover:text-brand-800">View all →</a>
+        </div>
+        {{template "product_grid" .Products}}
+      </section>
+    {{end}}
+  {{end}}
+</div>
+{{end}}

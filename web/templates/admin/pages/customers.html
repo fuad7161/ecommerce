@@ -1,0 +1,26 @@
+{{define "content"}}
+<form class="card mb-4 p-4" action="/admin/customers" method="get" hx-get="/admin/customers" hx-target="#results" hx-push-url="true" hx-trigger="submit, keyup changed delay:400ms from:#q">
+  <input id="q" name="q" type="search" value="{{.Q}}" placeholder="Search by phone number or name" class="input max-w-md" aria-label="Search customers">
+</form>
+<div id="results" class="card overflow-hidden">{{template "results" .}}</div>
+{{end}}
+
+{{define "results"}}
+<div class="overflow-x-auto">
+  <table class="table">
+    <thead><tr><th>Customer</th><th>Location</th><th class="text-right">Orders</th><th class="text-right">Total spent</th><th>Last order</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {{range .Page.Items}}
+      <tr>
+        <td><a href="/admin/customers/{{.ID}}" class="font-medium text-slate-900 hover:text-brand-700">{{.Name}}</a><div class="text-xs text-slate-500">{{.Phone}}</div></td>
+        <td class="text-slate-600">{{.Area}}, {{.District}}</td>
+        <td class="text-right">{{.OrderCount}}</td>
+        <td class="text-right font-medium">{{money .TotalSpent}}</td>
+        <td class="text-slate-500">{{with .LastOrderAt}}{{date .}}{{end}}</td>
+      </tr>
+      {{else}}<tr><td colspan="5" class="py-10 text-center text-slate-500">No customers found.</td></tr>{{end}}
+    </tbody>
+  </table>
+</div>
+{{template "admin_pagination" dict "Page" .Page "Base" "/admin/customers" "Query" .Query}}
+{{end}}

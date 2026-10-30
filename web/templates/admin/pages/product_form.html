@@ -1,0 +1,181 @@
+{{define "actions"}}
+{{if .Product}}
+<a href="/admin/products/{{.Product.ID}}/preview" target="_blank" class="btn-secondary btn-sm">Preview ↗</a>
+{{if eq .Product.Status "active"}}<a href="/product/{{.Product.Slug}}" target="_blank" class="btn-secondary btn-sm">View in store ↗</a>{{end}}
+{{end}}
+{{end}}
+
+{{define "content"}}
+{{$p := .Product}}
+<div class="grid gap-6 xl:grid-cols-3">
+  <form method="post" action="{{if $p}}/admin/products/{{$p.ID}}{{else}}/admin/products{{end}}" class="space-y-6 xl:col-span-2" novalidate>
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    {{if .Errors}}<div class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800" role="alert">Please fix the highlighted fields.</div>{{end}}
+
+    <section class="card space-y-4 p-5">
+      <h2 class="font-semibold text-slate-900">Basic information</h2>
+      {{template "afield" dict "Name" "name" "Label" "Product name" "Value" (index .Form "name") "Error" (index .Errors "name")}}
+      <div class="grid gap-4 sm:grid-cols-3">
+        {{template "afield" dict "Name" "sku" "Label" "SKU" "Value" (index .Form "sku") "Error" (index .Errors "sku") "Hint" "Auto-generated if empty"}}
+        {{template "afield" dict "Name" "slug" "Label" "URL slug" "Value" (index .Form "slug") "Error" (index .Errors "slug") "Hint" "From name if empty"}}
+        {{template "afield" dict "Name" "brand" "Label" "Brand (optional)" "Value" (index .Form "brand")}}
+      </div>
+      <div>
+        <label class="label" for="category_id">Category</label>
+        <select id="category_id" name="category_id" class="input">
+          <option value="">— Uncategorised —</option>
+          {{range .Categories}}<option value="{{.ID}}" {{if eq (index $.Form "category_id") (printf "%d" .ID)}}selected{{end}}>{{if .ParentID}}&nbsp;&nbsp;— {{end}}{{.Name}}</option>{{end}}
+        </select>
+      </div>
+      <div>
+        <label class="label" for="description">Description</label>
+        <textarea id="description" name="description" rows="5" class="input">{{index .Form "description"}}</textarea>
+      </div>
+      <div>
+        <label class="label" for="specs">Specifications</label>
+        <textarea id="specs" name="specs" rows="4" class="input font-mono text-xs" placeholder="Battery: 5000mAh&#10;Display: 6.5 inch">{{index .Form "specs"}}</textarea>
+        <p class="mt-1 text-xs text-slate-500">One per line, as <code>Name: Value</code>.</p>
+      </div>
+    </section>
+
+    <section class="card space-y-4 p-5">
+      <h2 class="font-semibold text-slate-900">Pricing</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {{template "afield" dict "Name" "regular_price" "Label" "Regular price (৳)" "Type" "text" "Value" (index .Form "regular_price") "Error" (index .Errors "regular_price") "Mode" "decimal"}}
+        {{template "afield" dict "Name" "selling_price" "Label" "Selling price (৳)" "Type" "text" "Value" (index .Form "selling_price") "Error" (index .Errors "selling_price") "Mode" "decimal" "Hint" "Lower than regular price = discount"}}
+      </div>
+      {{if not $p}}
+      {{template "afield" dict "Name" "initial_stock" "Label" "Initial stock" "Type" "number" "Value" (or (index .Form "initial_stock") "0") "Error" (index .Errors "initial_stock") "Hint" "You can add variants (size, colour…) after saving."}}
+      {{end}}
+    </section>
+
+    <section class="card space-y-4 p-5">
+      <h2 class="font-semibold text-slate-900">Visibility</h2>
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label class="label" for="status">Status</label>
+          <select id="status" name="status" class="input">
+            {{range .Statuses}}<option value="{{.}}" {{if eq (index $.Form "status") .}}selected{{end}} class="capitalize">{{.}}</option>{{end}}
+          </select>
+          {{with index .Errors "status"}}<p class="field-error">{{.}}</p>{{end}}
+        </div>
+        <label class="flex items-center gap-2 pt-6 text-sm"><input type="checkbox" name="is_featured" value="1" {{if eq (index .Form "is_featured") "1"}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> Featured on homepage</label>
+        <label class="flex items-center gap-2 pt-6 text-sm"><input type="checkbox" name="is_best_seller" value="1" {{if eq (index .Form "is_best_seller") "1"}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> Mark as best seller</label>
+      </div>
+      <p class="text-xs text-slate-500">Only <b>active</b> products are visible to customers. Save as <b>draft</b> to preview and finish later.</p>
+    </section>
+
+    <div class="flex gap-3">
+      <button class="btn-primary">{{if $p}}Save changes{{else}}Create product{{end}}</button>
+      <a href="/admin/products" class="btn-secondary">Cancel</a>
+    </div>
+  </form>
+
+  <div class="space-y-6">
+    {{if $p}}
+    <section id="images" class="card p-5">
+      <h2 class="font-semibold text-slate-900">Images</h2>
+      <div class="mt-3 grid grid-cols-3 gap-2">
+        {{range $i, $im := $p.Images}}
+        <div class="group relative overflow-hidden rounded-lg border {{if eq $i 0}}border-brand-500 ring-2 ring-brand-500{{else}}border-slate-200{{end}}">
+          <img src="{{img $im.Key}}" alt="" class="aspect-square w-full object-cover">
+          <div class="absolute inset-x-0 bottom-0 flex justify-between bg-slate-900/70 p-1 opacity-0 transition group-hover:opacity-100">
+            {{if ne $i 0}}<form method="post" action="/admin/products/{{$p.ID}}/images/{{$im.ID}}/primary"><input type="hidden" name="csrf_token" value="{{$.CSRF}}"><button class="px-1 text-xs text-white" title="Make primary">★</button></form>{{else}}<span></span>{{end}}
+            <form method="post" action="/admin/products/{{$p.ID}}/images/{{$im.ID}}/delete"><input type="hidden" name="csrf_token" value="{{$.CSRF}}"><button class="px-1 text-xs text-rose-200" data-confirm="Delete this image?" title="Delete">✕</button></form>
+          </div>
+        </div>
+        {{else}}<p class="col-span-3 text-sm text-slate-500">No images yet.</p>{{end}}
+      </div>
+      <form method="post" action="/admin/products/{{$p.ID}}/images" enctype="multipart/form-data" class="mt-4 space-y-2">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <input type="file" name="images" multiple accept="image/jpeg,image/png,image/webp,image/gif" required class="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-brand-700">
+        <button class="btn-secondary btn-sm w-full">Upload images</button>
+        <p class="text-xs text-slate-500">JPEG, PNG, WebP or GIF. The first image is the cover.</p>
+      </form>
+    </section>
+
+    <section id="variants" class="card p-5">
+      <h2 class="font-semibold text-slate-900">Variants &amp; stock</h2>
+      <div class="mt-3 space-y-3">
+        {{range $p.Variants}}
+        <div class="rounded-lg border border-slate-200 p-3 {{if not .Active}}bg-slate-50 opacity-70{{end}}">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <p class="font-medium">{{or .Name "Default"}}</p>
+              <p class="text-xs text-slate-500">{{.SKU}}{{if not .Active}} · inactive{{end}}</p>
+            </div>
+            <div class="text-right text-xs">
+              <p><b class="text-base {{if le .Available 0}}text-rose-600{{else if le .Available .LowStockThreshold}}text-amber-600{{else}}text-slate-900{{end}}">{{.Available}}</b> available</p>
+              <p class="text-slate-500">{{.Stock}} on hand · {{.Reserved}} reserved</p>
+            </div>
+          </div>
+          <details class="mt-2 text-sm">
+            <summary class="cursor-pointer text-xs font-medium text-brand-700">Adjust stock / edit</summary>
+            <form method="post" action="/admin/variants/{{.ID}}/adjust" class="mt-2 flex gap-2">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <input name="delta" type="number" required placeholder="+10 or -2" class="input w-24" aria-label="Quantity change">
+              <input name="note" placeholder="Reason (restock, damage…)" class="input" aria-label="Reason">
+              <button class="btn-secondary btn-sm">Apply</button>
+            </form>
+            <form method="post" action="/admin/variants/{{.ID}}" class="mt-2 grid grid-cols-[1fr_5rem_auto] items-center gap-2">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <input name="name" value="{{.Name}}" placeholder="Variant name" class="input" aria-label="Variant name">
+              <input name="threshold" type="number" min="0" value="{{.LowStockThreshold}}" class="input" title="Low-stock alert threshold" aria-label="Low stock threshold">
+              <label class="flex items-center gap-1 text-xs"><input type="checkbox" name="active" value="1" {{if .Active}}checked{{end}}> Active</label>
+              <button class="btn-secondary btn-sm col-span-3">Save variant</button>
+            </form>
+            <button type="button" class="mt-2 text-xs font-medium text-slate-600 underline" hx-get="/admin/variants/{{.ID}}/history" hx-target="#history-{{.ID}}">Show stock history</button>
+            <div id="history-{{.ID}}" class="mt-2"></div>
+          </details>
+        </div>
+        {{end}}
+      </div>
+      <form method="post" action="/admin/products/{{$p.ID}}/variants" class="mt-4 space-y-2 rounded-lg bg-slate-50 p-3">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <p class="text-sm font-medium">Add variant</p>
+        <div class="grid grid-cols-2 gap-2">
+          <input name="name" required placeholder="Name (e.g. Red / XL)" class="input" aria-label="Variant name">
+          <input name="sku" required placeholder="SKU" class="input" aria-label="Variant SKU">
+          <input name="stock" type="number" min="0" value="0" class="input" aria-label="Initial stock" title="Initial stock">
+          <input name="threshold" type="number" min="0" value="5" class="input" aria-label="Low stock threshold" title="Low-stock threshold">
+        </div>
+        <button class="btn-secondary btn-sm w-full">Add variant</button>
+        <p class="text-xs text-slate-500">Tip: when you add named variants, deactivate the "Default" one.</p>
+      </form>
+    </section>
+
+    <section class="card border-rose-200 p-5">
+      <h2 class="font-semibold text-rose-700">Danger zone</h2>
+      <form method="post" action="/admin/products/{{$p.ID}}/delete" class="mt-3">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <button class="btn-danger btn-sm" data-confirm="Delete this product? Past orders keep their records.">Delete product</button>
+      </form>
+    </section>
+    {{else}}
+    <div class="card p-5 text-sm text-slate-600">Save the product first, then upload images and add variants.</div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+{{define "afield"}}
+<div>
+  <label class="label" for="{{.Name}}">{{.Label}}</label>
+  <input id="{{.Name}}" name="{{.Name}}" type="{{or .Type "text"}}" value="{{.Value}}" {{with .Mode}}inputmode="{{.}}"{{end}} class="input {{if .Error}}input-error{{end}}">
+  {{with .Error}}<p class="field-error">{{.}}</p>{{else}}{{with $.Hint}}<p class="mt-1 text-xs text-slate-500">{{.}}</p>{{end}}{{end}}
+</div>
+{{end}}
+
+{{define "stock_history"}}
+<table class="w-full text-xs">
+  <thead><tr class="text-left text-slate-500"><th class="py-1">When</th><th>Type</th><th class="text-right">Δ stock</th><th class="text-right">After</th><th>Ref</th></tr></thead>
+  <tbody class="divide-y divide-slate-100">
+    {{range .Moves}}
+    <tr><td class="py-1">{{date .CreatedAt}}</td><td class="capitalize">{{.Kind}}</td>
+        <td class="text-right">{{if ne .StockChange 0}}{{.StockChange}}{{else}}<span class="text-slate-400">res {{.ReservedChange}}</span>{{end}}</td>
+        <td class="text-right">{{.StockAfter}}/{{.ReservedAfter}}</td>
+        <td class="truncate">{{with .OrderNumber}}#{{.}}{{end}} {{.AdminName}} {{.Note}}</td></tr>
+    {{else}}<tr><td colspan="5" class="py-2 text-slate-500">No movements yet.</td></tr>{{end}}
+  </tbody>
+</table>
+{{end}}

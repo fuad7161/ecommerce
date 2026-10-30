@@ -1,0 +1,20 @@
+{{define "content"}}
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Entity</th><th>Details</th><th>IP</th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {{range .Entries}}
+        <tr><td class="text-slate-500">{{date .CreatedAt}}</td><td>{{.AdminName}}</td><td class="font-mono text-xs">{{.Action}}</td>
+            <td class="text-slate-600">{{.Entity}}{{with .EntityID}} #{{.}}{{end}}</td>
+            <td class="max-w-md truncate font-mono text-xs text-slate-500" title="{{.Details}}">{{.Details}}</td><td class="text-xs text-slate-500">{{.IP}}</td></tr>
+        {{else}}<tr><td colspan="6" class="py-10 text-center text-slate-500">No activity yet.</td></tr>{{end}}
+      </tbody>
+    </table>
+  </div>
+  <div class="flex justify-between border-t border-slate-200 px-4 py-3 text-sm">
+    {{if gt .PageNum 1}}<a href="/admin/audit?page={{add .PageNum -1}}" class="btn-secondary btn-sm">← Newer</a>{{else}}<span></span>{{end}}
+    {{if .HasNext}}<a href="/admin/audit?page={{add .PageNum 1}}" class="btn-secondary btn-sm">Older →</a>{{end}}
+  </div>
+</div>
+{{end}}

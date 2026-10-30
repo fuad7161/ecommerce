@@ -1,0 +1,46 @@
+{{define "invoice"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Invoice {{.Order.Number}}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="bg-white">
+{{$o := .Order}}
+<div class="mx-auto max-w-3xl p-8 text-sm">
+  <div class="no-print mb-6 flex justify-end"><button type="button" class="btn-primary btn-sm" data-print>Print</button></div>
+  <div class="flex items-start justify-between">
+    <div>
+      <p class="text-2xl font-extrabold">{{.Store.Get "store_name"}}</p>
+      <p class="text-slate-600">{{.Store.Get "store_address"}}</p>
+      <p class="text-slate-600">{{.Store.Get "store_phone"}} · {{.Store.Get "store_email"}}</p>
+    </div>
+    <div class="text-right">
+      <p class="text-xl font-bold uppercase tracking-wide">Invoice</p>
+      <p>#{{$o.Number}}</p>
+      <p class="text-slate-600">{{date $o.CreatedAt}}</p>
+    </div>
+  </div>
+  <div class="mt-8 grid grid-cols-2 gap-6">
+    <div><p class="text-xs font-semibold uppercase text-slate-500">Deliver to</p>
+      <p class="mt-1 font-semibold">{{$o.CustomerName}}</p><p>{{$o.Phone}}</p><p>{{$o.Address}}</p><p>{{$o.Area}}, {{$o.District}}</p></div>
+    <div class="text-right"><p class="text-xs font-semibold uppercase text-slate-500">Payment</p><p class="mt-1">Cash on Delivery</p>
+      <p class="mt-2 text-xs font-semibold uppercase text-slate-500">Status</p><p>{{$o.StatusLabel}}</p></div>
+  </div>
+  <table class="mt-8 w-full">
+    <thead><tr class="border-b-2 border-slate-900 text-left"><th class="py-2">Item</th><th class="py-2">SKU</th><th class="py-2 text-right">Unit</th><th class="py-2 text-right">Qty</th><th class="py-2 text-right">Total</th></tr></thead>
+    <tbody>
+      {{range $o.Items}}<tr class="border-b border-slate-200"><td class="py-2">{{.ProductName}}{{with .VariantName}} ({{.}}){{end}}</td><td class="py-2">{{.SKU}}</td><td class="py-2 text-right">{{money .UnitPrice}}</td><td class="py-2 text-right">{{.Quantity}}</td><td class="py-2 text-right">{{money .LineTotal}}</td></tr>{{end}}
+    </tbody>
+  </table>
+  <dl class="ml-auto mt-4 w-64 space-y-1">
+    <div class="flex justify-between"><dt>Subtotal</dt><dd>{{money $o.Subtotal}}</dd></div>
+    <div class="flex justify-between"><dt>Discount</dt><dd>−{{money $o.Discount}}</dd></div>
+    <div class="flex justify-between"><dt>Delivery</dt><dd>{{money $o.DeliveryCharge}}</dd></div>
+    <div class="flex justify-between border-t-2 border-slate-900 pt-1 text-base font-bold"><dt>Amount to collect</dt><dd>{{money $o.Total}}</dd></div>
+  </dl>
+  <p class="mt-12 text-center text-xs text-slate-500">Thank you for shopping with {{.Store.Get "store_name"}}.</p>
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>{{end}}

@@ -1,0 +1,37 @@
+{{define "content"}}
+{{$c := .Customer}}
+<div class="grid gap-6 xl:grid-cols-3">
+  <div class="space-y-6">
+    <section class="card p-5">
+      <p class="text-xl font-bold">{{$c.Name}}</p>
+      <p class="text-slate-600"><a href="tel:{{$c.Phone}}">{{$c.Phone}}</a></p>
+      <p class="mt-3 text-sm">{{$c.Address}}<br>{{$c.Area}}, {{$c.District}}</p>
+      <div class="mt-4 grid grid-cols-2 gap-3 text-center">
+        <div class="rounded-lg bg-slate-50 p-3"><p class="text-xs uppercase text-slate-500">Orders</p><p class="text-xl font-bold">{{$c.OrderCount}}</p></div>
+        <div class="rounded-lg bg-slate-50 p-3"><p class="text-xs uppercase text-slate-500">Spent</p><p class="text-xl font-bold">{{money $c.TotalSpent}}</p></div>
+      </div>
+      <p class="mt-3 text-xs text-slate-500">Customer since {{date $c.CreatedAt}}</p>
+    </section>
+    <form method="post" action="/admin/customers/{{$c.ID}}/notes" class="card space-y-3 p-5">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <label class="label" for="notes">Internal notes</label>
+      <textarea id="notes" name="notes" rows="4" class="input" placeholder="e.g. Prefers delivery after 5pm">{{$c.Notes}}</textarea>
+      <button class="btn-secondary btn-sm">Save notes</button>
+    </form>
+  </div>
+  <section class="card overflow-hidden xl:col-span-2">
+    <h2 class="p-5 font-semibold text-slate-900">Order history</h2>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead><tr><th>Order</th><th>Status</th><th class="text-right">Items</th><th class="text-right">Total</th><th>Placed</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {{range .Orders}}
+          <tr><td><a href="/admin/orders/{{.ID}}" class="font-semibold text-brand-700">{{.Number}}</a></td><td><span class="badge {{statusColor .Status}}">{{.StatusLabel}}</span></td>
+              <td class="text-right">{{.ItemCount}}</td><td class="text-right">{{money .Total}}</td><td class="text-slate-500">{{date .CreatedAt}}</td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{{end}}

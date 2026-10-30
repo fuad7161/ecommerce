@@ -1,0 +1,7 @@
+.git
+.env
+bin
+tmp
+*.md
+!README.md
+web/static/css/app.css

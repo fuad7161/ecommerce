@@ -1,0 +1,27 @@
+{{define "content"}}
+<div class="container-x max-w-4xl py-10">
+  <h1 class="text-2xl font-bold tracking-tight text-slate-900">Public API (v1)</h1>
+  <p class="mt-2 text-sm text-slate-600">JSON API under <code>/api/v1</code>. Money values are integers in <b>poisha</b> (1 taka = 100 poisha). Prices and totals are always computed by the server.
+    The full machine-readable contract is the <a href="/api/openapi.yaml" class="font-semibold text-brand-700 underline">OpenAPI 3 specification</a> — import it into Postman, Insomnia or Swagger Editor.</p>
+  <div class="card mt-6 overflow-hidden">
+    <table class="table">
+      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+      <tbody class="divide-y divide-slate-100 font-mono text-xs">
+        <tr><td>GET</td><td>/api/v1/categories</td><td class="font-sans">Category tree</td></tr>
+        <tr><td>GET</td><td>/api/v1/products</td><td class="font-sans">Search &amp; filter: q, category, min, max, in_stock, on_sale, sort, page</td></tr>
+        <tr><td>GET</td><td>/api/v1/products/{slug}</td><td class="font-sans">Product details and variants</td></tr>
+        <tr><td>GET</td><td>/api/v1/delivery-zones</td><td class="font-sans">Delivery zones and charges</td></tr>
+        <tr><td>POST</td><td>/api/v1/cart/quote</td><td class="font-sans">Server-priced cart</td></tr>
+        <tr><td>POST</td><td>/api/v1/orders</td><td class="font-sans">Guest COD order (header <code>Idempotency-Key</code>)</td></tr>
+        <tr><td>POST</td><td>/api/v1/orders/track</td><td class="font-sans">Track by order number + phone</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h2 class="mt-8 font-semibold text-slate-900">Example</h2>
+  <pre class="mt-2 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">curl -X POST {{.AppURL}}/api/v1/orders \
+  -H 'Content-Type: application/json' -H 'Idempotency-Key: 3f2a9c1e-7b4d-4e0a-9a51-0c1d2e3f4a5b' \
+  -d '{"name":"Rahim Uddin","phone":"01712345678","district":"Dhaka","area":"Mirpur",
+       "address":"House 12, Road 5, Block C","zone_id":1,"payment_method":"cod","confirmed":true,
+       "items":[{"sku":"BZ-1003","qty":1}]}'</pre>
+</div>
+{{end}}

@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: Storefront public API
+  version: "1.0.0"
+  description: |
+    Public, unauthenticated JSON API used by the storefront and third-party clients.
+
+    * All money values are **integers in poisha** (1 BDT = 100 poisha).
+    * Prices, discounts, delivery charges and totals are always computed by the server;
+      clients send only SKUs and quantities.
+    * `POST /orders` and `POST /orders/track` are rate-limited per client IP (HTTP 429).
+    * The admin dashboard uses server-rendered HTML routes under `/admin` protected by
+      session authentication, RBAC and CSRF tokens; it is not part of this public API.
+servers:
+  - url: /api/v1
+paths:
+  /categories:
+    get:
+      summary: Category tree (active categories only)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Category" }
+  /products:
+    get:
+      summary: Search and filter products
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Name, SKU, brand or description }
+        - { name: category, in: query, schema: { type: string }, description: Category slug (includes subcategories) }
+        - { name: min, in: query, schema: { type: string }, description: Minimum price in taka }
+        - { name: max, in: query, schema: { type: string }, description: Maximum price in taka }
+        - { name: in_stock, in: query, schema: { type: string, enum: ["1"] } }
+        - { name: on_sale, in: query, schema: { type: string, enum: ["1"] } }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [newest, price_asc, price_desc, popular, best_selling, trending] }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProductCard" }
+                  meta: { $ref: "#/components/schemas/PageMeta" }
+  /products/{slug}:
+    get:
+      summary: Product details with purchasable variants
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Product" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /delivery-zones:
+    get:
+      summary: Active delivery zones and charges
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        charge: { type: integer, description: poisha }
+  /cart/quote:
+    post:
+      summary: Price a cart on the server
+      description: Unknown or unavailable items are returned with `qty` 0 and a `problem`; quantities above stock are reduced.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: "#/components/schemas/CartLine" }
+                zone_id: { type: integer, description: Delivery zone; omit to quote without delivery }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Quote" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /orders:
+    post:
+      summary: Place a guest Cash-on-Delivery order
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: 16–100 characters, unique per checkout attempt. Re-sending the same key returns the original order.
+          schema: { type: string, minLength: 16, maxLength: 100 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone, district, area, address, zone_id, payment_method, confirmed, items]
+              properties:
+                name: { type: string, example: Rahim Uddin }
+                phone: { type: string, example: "01712345678", description: "Bangladeshi mobile: 01XXXXXXXXX, 8801…, +8801…" }
+                district: { type: string, example: Dhaka }
+                area: { type: string, example: Mirpur }
+                address: { type: string, example: "House 12, Road 5, Block C" }
+                notes: { type: string }
+                zone_id: { type: integer }
+                payment_method: { type: string, enum: [cod] }
+                confirmed: { type: boolean, enum: [true] }
+                items:
+                  type: array
+                  items: { $ref: "#/components/schemas/CartLine" }
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Order" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/Validation" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /orders/track:
+    post:
+      summary: Track an order (order number + checkout phone must both match)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_number, phone]
+              properties:
+                order_number: { type: string, example: "261030-14794" }
+                phone: { type: string, example: "01712345678" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: "#/components/schemas/Order" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+components:
+  responses:
+    NotFound:
+      description: Not found
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    BadRequest:
+      description: Malformed JSON
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Conflict:
+      description: Cart changed (price/stock), empty cart, invalid zone or COD disabled
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Validation:
+      description: Field validation errors
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    TooManyRequests:
+      description: Rate limit exceeded
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        fields:
+          type: object
+          additionalProperties: { type: string }
+    PageMeta:
+      type: object
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+        pages: { type: integer }
+    Category:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        children:
+          type: array
+          items: { $ref: "#/components/schemas/Category" }
+    ProductCard:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        category: { type: string }
+        regular_price: { type: integer }
+        price: { type: integer, description: Effective price after product discount or campaign }
+        discount_percent: { type: integer }
+        offer: { type: string, description: Campaign providing the price, if any }
+        in_stock: { type: boolean }
+        image: { type: string }
+    Product:
+      type: object
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        sku: { type: string }
+        brand: { type: string }
+        description: { type: string }
+        specs:
+          type: array
+          items:
+            type: object
+            properties: { name: { type: string }, value: { type: string } }
+        category: { type: string }
+        regular_price: { type: integer }
+        price: { type: integer }
+        offer: { type: string }
+        discount_percent: { type: integer }
+        images: { type: array, items: { type: string } }
+        variants:
+          type: array
+          items:
+            type: object
+            properties:
+              sku: { type: string }
+              name: { type: string }
+              available: { type: integer }
+    CartLine:
+      type: object
+      required: [sku, qty]
+      properties:
+        sku: { type: string }
+        qty: { type: integer, minimum: 1, maximum: 50 }
+    Quote:
+      type: object
+      properties:
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              sku: { type: string }
+              product_name: { type: string }
+              product_slug: { type: string }
+              variant_name: { type: string }
+              image_key: { type: string }
+              offer_title: { type: string }
+              regular_price: { type: integer }
+              unit_price: { type: integer }
+              qty: { type: integer }
+              requested_qty: { type: integer }
+              available: { type: integer }
+              line_total: { type: integer }
+              problem: { type: string }
+        subtotal: { type: integer, description: Sum of regular prices }
+        discount: { type: integer }
+        delivery_charge: { type: integer }
+        total: { type: integer }
+        zone_id: { type: integer }
+        zone_name: { type: string }
+        free_delivery: { type: boolean }
+        item_count: { type: integer }
+        has_problems: { type: boolean }
+    Order:
+      type: object
+      properties:
+        order_number: { type: string }
+        status:
+          type: string
+          enum: [pending, confirmed, processing, ready_to_ship, shipped, in_transit, delivered, cancelled, returned]
+        status_label: { type: string }
+        customer_name: { type: string }
+        delivery_address: { type: string }
+        payment_method: { type: string, enum: [cod] }
+        subtotal: { type: integer }
+        discount: { type: integer }
+        delivery_charge: { type: integer }
+        total: { type: integer }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              name: { type: string }
+              variant: { type: string }
+              quantity: { type: integer }
+              unit_price: { type: integer }
+              line_total: { type: integer }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              status: { type: string }
+              at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }

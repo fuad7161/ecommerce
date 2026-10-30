@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-slate-50 text-slate-800 antialiased; }
+  [x-cloak] { display: none; }
+}
+
+@layer components {
+  .container-x { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50; }
+  .btn-primary { @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700; }
+  .btn-secondary { @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50; }
+  .btn-danger { @apply btn bg-rose-600 text-white hover:bg-rose-700; }
+  .btn-sm { @apply px-3 py-1.5 text-xs; }
+  .input { @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30; }
+  .input-error { @apply border-rose-400 focus:border-rose-500 focus:ring-rose-500/30; }
+  .label { @apply mb-1 block text-sm font-medium text-slate-700; }
+  .field-error { @apply mt-1 text-xs font-medium text-rose-600; }
+  .card { @apply rounded-xl border border-slate-200 bg-white shadow-sm; }
+  .badge { @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold; }
+  .table { @apply min-w-full divide-y divide-slate-200 text-sm; }
+  .table th { @apply bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500; }
+  .table td { @apply whitespace-nowrap px-4 py-3 align-middle; }
+  .table tbody tr { @apply hover:bg-slate-50; }
+  .nav-link { @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white; }
+  .nav-link.active { @apply bg-slate-800 text-white; }
+  .section-title { @apply text-xl font-bold tracking-tight text-slate-900 sm:text-2xl; }
+}
+
+/* HTMX request feedback */
+.htmx-indicator { opacity: 0; transition: opacity 150ms ease-in; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { opacity: 1; }
+#results.htmx-request, #cart-summary.htmx-request { opacity: .6; transition: opacity 150ms; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+}

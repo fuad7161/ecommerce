@@ -1,0 +1,59 @@
+{{define "actions"}}<a href="/admin/products/new" class="btn-primary btn-sm">+ New product</a>{{end}}
+
+{{define "content"}}
+<form class="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6" action="/admin/products" method="get"
+      hx-get="/admin/products" hx-target="#results" hx-push-url="true" hx-trigger="change, submit, keyup changed delay:400ms from:#q">
+  <input id="q" name="q" type="search" value="{{.F.Q}}" placeholder="Search name, SKU, brand" class="input lg:col-span-2" aria-label="Search">
+  <select name="category" class="input" aria-label="Category">
+    <option value="">All categories</option>
+    {{range .Categories}}<option value="{{.ID}}" {{if eq $.F.CategoryID .ID}}selected{{end}}>{{if .ParentID}}— {{end}}{{.Name}}</option>{{end}}
+  </select>
+  <select name="status" class="input" aria-label="Status">
+    <option value="">Any status</option>
+    <option value="active" {{if eq .F.Status "active"}}selected{{end}}>Active</option>
+    <option value="draft" {{if eq .F.Status "draft"}}selected{{end}}>Draft</option>
+    <option value="inactive" {{if eq .F.Status "inactive"}}selected{{end}}>Inactive</option>
+    <option value="archived" {{if eq .F.Status "archived"}}selected{{end}}>Archived</option>
+  </select>
+  <select name="stock" class="input" aria-label="Stock">
+    <option value="">Any stock</option>
+    <option value="in" {{if eq .F.Stock "in"}}selected{{end}}>In stock</option>
+    <option value="low" {{if eq .F.Stock "low"}}selected{{end}}>Low stock</option>
+    <option value="out" {{if eq .F.Stock "out"}}selected{{end}}>Out of stock</option>
+  </select>
+  <select name="sort" class="input" aria-label="Sort">
+    <option value="newest">Newest</option>
+    <option value="name" {{if eq .F.Sort "name"}}selected{{end}}>Name</option>
+    <option value="price_asc" {{if eq .F.Sort "price_asc"}}selected{{end}}>Price ↑</option>
+    <option value="price_desc" {{if eq .F.Sort "price_desc"}}selected{{end}}>Price ↓</option>
+    <option value="stock_asc" {{if eq .F.Sort "stock_asc"}}selected{{end}}>Stock ↑</option>
+    <option value="best_selling" {{if eq .F.Sort "best_selling"}}selected{{end}}>Best selling</option>
+  </select>
+</form>
+<div id="results" class="card overflow-hidden">{{template "results" .}}</div>
+{{end}}
+
+{{define "results"}}
+<div class="overflow-x-auto">
+  <table class="table">
+    <thead><tr><th></th><th>Product</th><th>Category</th><th>Status</th><th class="text-right">Price</th><th class="text-right">Available</th><th class="text-right">Sold</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {{range .Page.Items}}
+      <tr>
+        <td class="w-14"><div class="h-10 w-10 overflow-hidden rounded bg-slate-100">{{if .ImageKey}}<img src="{{img .ImageKey}}" alt="" class="h-full w-full object-cover" loading="lazy">{{end}}</div></td>
+        <td><a href="/admin/products/{{.ID}}" class="font-medium text-slate-900 hover:text-brand-700">{{truncate .Name 50}}</a>
+          <div class="text-xs text-slate-500">{{.SKU}}{{if .IsFeatured}} · ⭐ Featured{{end}}{{if .IsBestSeller}} · 🔥 Best seller{{end}}</div></td>
+        <td class="text-slate-600">{{or .CategoryName "—"}}</td>
+        <td><span class="badge {{statusColor .Status}} capitalize">{{.Status}}</span></td>
+        <td class="text-right">{{money .SellingPrice}}{{if .OnSale}}<div class="text-xs text-slate-400 line-through">{{money .RegularPrice}}</div>{{end}}</td>
+        <td class="text-right font-semibold {{if le .Available 0}}text-rose-600{{else if .LowStock}}text-amber-600{{end}}">{{.Available}}</td>
+        <td class="text-right text-slate-600">{{.SoldCount}}</td>
+      </tr>
+      {{else}}
+      <tr><td colspan="7" class="py-10 text-center text-slate-500">No products found. <a href="/admin/products/new" class="font-medium text-brand-700">Create one</a>.</td></tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{template "admin_pagination" dict "Page" .Page "Base" "/admin/products" "Query" .Query}}
+{{end}}

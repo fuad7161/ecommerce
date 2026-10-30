@@ -1,0 +1,66 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{with .Title}}{{.}} · {{end}}Admin · {{.Store.Get "store_name"}}</title>
+  <meta name="htmx-config" content='{"allowEval":false,"includeIndicatorStyles":false,"historyCacheSize":0}'>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body class="min-h-screen bg-slate-100" hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
+{{if .Admin}}
+<div class="lg:flex">
+  <aside id="sidebar" class="no-print fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-slate-900 lg:flex">
+    <div class="flex h-16 items-center gap-2 border-b border-slate-800 px-5">
+      <span class="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 font-black text-white">{{firstLetter (.Store.Get "store_name")}}</span>
+      <span class="font-bold text-white">{{.Store.Get "store_name"}}</span>
+    </div>
+    <nav class="flex-1 space-y-1 overflow-y-auto p-3">
+      {{$p := .Path}}
+      {{if can .Admin "dashboard.view"}}<a href="/admin" class="nav-link {{if eq $p "/admin" "/admin/"}}active{{end}}">📊 Dashboard</a>{{end}}
+      {{if can .Admin "orders.manage"}}<a href="/admin/orders" class="nav-link {{if eq $p "/admin/orders"}}active{{end}}">🧾 Orders</a>{{end}}
+      {{if can .Admin "catalog.manage"}}
+      <a href="/admin/products" class="nav-link {{if eq $p "/admin/products"}}active{{end}}">📦 Products</a>
+      <a href="/admin/products?stock=low" class="nav-link">⚠️ Low stock</a>
+      <a href="/admin/categories" class="nav-link {{if eq $p "/admin/categories"}}active{{end}}">🗂️ Categories</a>
+      {{end}}
+      {{if can .Admin "offers.manage"}}<a href="/admin/offers" class="nav-link {{if eq $p "/admin/offers"}}active{{end}}">🎉 Offers</a>{{end}}
+      {{if can .Admin "customers.view"}}<a href="/admin/customers" class="nav-link {{if eq $p "/admin/customers"}}active{{end}}">👥 Customers</a>{{end}}
+      {{if can .Admin "settings.manage"}}
+      <p class="px-3 pb-1 pt-4 text-xs font-semibold uppercase tracking-wider text-slate-500">Settings</p>
+      <a href="/admin/settings" class="nav-link {{if eq $p "/admin/settings"}}active{{end}}">⚙️ Store settings</a>
+      <a href="/admin/homepage" class="nav-link {{if eq $p "/admin/homepage"}}active{{end}}">🏠 Homepage</a>
+      <a href="/admin/admins" class="nav-link {{if eq $p "/admin/admins"}}active{{end}}">🔐 Admin users</a>
+      {{end}}
+      {{if can .Admin "audit.view"}}<a href="/admin/audit" class="nav-link {{if eq $p "/admin/audit"}}active{{end}}">📜 Audit log</a>{{end}}
+    </nav>
+    <div class="border-t border-slate-800 p-4 text-sm">
+      <a href="/admin/account" class="font-medium text-white hover:underline">{{.Admin.Name}}</a>
+      <p class="text-xs capitalize text-slate-400">{{.Admin.Role}} · {{.Admin.Email}}</p>
+      <div class="mt-3 flex gap-2">
+        <a href="/" target="_blank" class="btn-sm btn border border-slate-700 text-slate-300 hover:bg-slate-800">View store</a>
+        <form method="post" action="/admin/logout"><input type="hidden" name="csrf_token" value="{{.CSRF}}"><button class="btn-sm btn border border-slate-700 text-slate-300 hover:bg-slate-800">Log out</button></form>
+      </div>
+    </div>
+  </aside>
+
+  <div class="flex min-h-screen flex-1 flex-col lg:pl-64">
+    <header class="no-print sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4 sm:px-6">
+      <button type="button" class="rounded-lg p-2 hover:bg-slate-100 lg:hidden" data-toggle="sidebar" aria-label="Toggle menu">☰</button>
+      <h1 class="truncate text-lg font-semibold text-slate-900">{{.Title}}</h1>
+      <div class="ml-auto">{{block "actions" .}}{{end}}</div>
+    </header>
+    <main class="flex-1 p-4 sm:p-6">
+      {{with .Flash}}<div class="mb-4 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-medium text-brand-800" role="status">{{.}}</div>{{end}}
+      {{template "content" .}}
+    </main>
+  </div>
+</div>
+{{else}}
+  {{template "content" .}}
+{{end}}
+</body>
+</html>{{end}}

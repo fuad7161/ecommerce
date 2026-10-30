@@ -1,0 +1,91 @@
+{{define "content"}}
+<div class="container-x py-8">
+  <nav class="mb-4 text-sm text-slate-500" aria-label="Breadcrumb">
+    <a href="/" class="hover:text-slate-800">Home</a> /
+    {{if .Offer}}<a href="/offers" class="hover:text-slate-800">Offers</a> / <span class="text-slate-800">{{.Offer.Title}}</span>
+    {{else if .Category}}<a href="/products" class="hover:text-slate-800">Products</a> / <span class="text-slate-800">{{.Category.Name}}</span>
+    {{else}}<span class="text-slate-800">Products</span>{{end}}
+  </nav>
+
+  <div class="flex flex-col gap-6 lg:flex-row">
+    <aside class="lg:w-64 lg:shrink-0">
+      <button type="button" class="btn-secondary w-full lg:hidden" data-toggle="filters">Filters &amp; sorting</button>
+      <form id="filters" action="{{.BaseURL}}" method="get" class="card mt-3 hidden space-y-5 p-4 lg:mt-0 lg:block"
+            hx-get="{{.BaseURL}}" hx-target="#results" hx-push-url="true" hx-trigger="change, submit, keyup changed delay:400ms from:#f-q">
+        <div>
+          <label class="label" for="f-q">Search</label>
+          <input id="f-q" name="q" type="search" value="{{.Params.Q}}" class="input" placeholder="Name, brand, SKU…">
+        </div>
+        <div>
+          <label class="label" for="f-sort">Sort by</label>
+          <select id="f-sort" name="sort" class="input">
+            <option value="newest" {{if eq .Params.Sort "newest" ""}}selected{{end}}>Newest</option>
+            <option value="popular" {{if eq .Params.Sort "popular"}}selected{{end}}>Popularity</option>
+            <option value="best_selling" {{if eq .Params.Sort "best_selling"}}selected{{end}}>Best selling</option>
+            <option value="trending" {{if eq .Params.Sort "trending"}}selected{{end}}>Trending</option>
+            <option value="price_asc" {{if eq .Params.Sort "price_asc"}}selected{{end}}>Price: low to high</option>
+            <option value="price_desc" {{if eq .Params.Sort "price_desc"}}selected{{end}}>Price: high to low</option>
+          </select>
+        </div>
+        {{if and (not .Category) (not .Offer)}}
+        <div>
+          <label class="label" for="f-cat">Category</label>
+          <select id="f-cat" name="category" class="input">
+            <option value="">All categories</option>
+            {{range .Categories}}
+            <option value="{{.Slug}}" {{if eq $.Params.CategorySlug .Slug}}selected{{end}}>{{.Name}}</option>
+            {{range .Children}}<option value="{{.Slug}}" {{if eq $.Params.CategorySlug .Slug}}selected{{end}}>&nbsp;&nbsp;— {{.Name}}</option>{{end}}
+            {{end}}
+          </select>
+        </div>
+        {{end}}
+        <fieldset>
+          <legend class="label">Price (৳)</legend>
+          <div class="flex items-center gap-2">
+            <input name="min" type="number" min="0" inputmode="numeric" value="{{.Query.Get "min"}}" placeholder="Min" class="input" aria-label="Minimum price">
+            <span class="text-slate-400">–</span>
+            <input name="max" type="number" min="0" inputmode="numeric" value="{{.Query.Get "max"}}" placeholder="Max" class="input" aria-label="Maximum price">
+          </div>
+        </fieldset>
+        <div class="space-y-2">
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="in_stock" value="1" {{if .Params.InStock}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> In stock only</label>
+          <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="on_sale" value="1" {{if .Params.OnSale}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> On offer / discounted</label>
+        </div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn-primary flex-1">Apply</button>
+          <a href="{{.BaseURL}}" class="btn-secondary">Reset</a>
+        </div>
+      </form>
+    </aside>
+
+    <section class="min-w-0 flex-1">
+      {{with .Offer}}
+      <div class="mb-5 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 p-5 text-white">
+        <p class="text-xs font-semibold uppercase tracking-widest text-white/80">Campaign · ends {{date .EndsAt}}</p>
+        <p class="mt-1 text-lg font-bold">{{if eq .DiscountType "percent"}}{{.DiscountValue}}% off selected products{{else}}{{money .DiscountValue}} off selected products{{end}}</p>
+      </div>
+      {{end}}
+      <div class="mb-4">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{.Title}}</h1>
+        {{with .Description}}<p class="mt-1 text-sm text-slate-600">{{.}}</p>{{end}}
+      </div>
+      <div id="results">{{template "results" .}}</div>
+    </section>
+  </div>
+</div>
+{{end}}
+
+{{define "results"}}
+<p class="mb-3 text-sm text-slate-500">{{.Page.Total}} product{{if ne .Page.Total 1}}s{{end}} found</p>
+{{if .Page.Items}}
+  {{template "product_grid" .Page.Items}}
+  {{template "pagination" .}}
+{{else}}
+  <div class="card grid place-items-center p-12 text-center">
+    <p class="text-4xl">🔍</p>
+    <p class="mt-3 font-semibold text-slate-900">No products match your filters</p>
+    <p class="mt-1 text-sm text-slate-500">Try a different search term or remove some filters.</p>
+    <a href="{{.BaseURL}}" class="btn-secondary mt-4">Clear filters</a>
+  </div>
+{{end}}
+{{end}}

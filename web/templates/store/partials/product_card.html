@@ -1,0 +1,38 @@
+{{define "product_card"}}
+<a href="/product/{{.Slug}}" class="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+  <div class="relative aspect-square overflow-hidden bg-slate-100">
+    {{if .ImageKey}}
+    <img src="{{thumb .ImageKey}}" alt="{{.Name}}" loading="lazy" decoding="async" width="480" height="480" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
+    {{else}}
+    <div class="grid h-full w-full place-items-center text-4xl font-black text-slate-300">{{firstLetter .Name}}</div>
+    {{end}}
+    {{if .OnSale}}<span class="badge absolute left-2 top-2 bg-rose-600 text-white">-{{.DiscountPercent}}%</span>{{end}}
+    {{if le .Available 0}}<span class="badge absolute right-2 top-2 bg-slate-900/80 text-white">Out of stock</span>
+    {{else if .OfferTitle}}<span class="badge absolute bottom-2 left-2 max-w-[90%] truncate bg-amber-400 text-amber-950">🎉 {{.OfferTitle}}</span>{{end}}
+  </div>
+  <div class="flex flex-1 flex-col p-3">
+    {{with .CategoryName}}<p class="text-xs text-slate-500">{{.}}</p>{{end}}
+    <h3 class="mt-0.5 line-clamp-2 text-sm font-semibold text-slate-900">{{.Name}}</h3>
+    <div class="mt-auto flex items-baseline gap-2 pt-2">
+      <span class="text-base font-bold text-brand-700">{{money .Price}}</span>
+      {{if .OnSale}}<span class="text-xs text-slate-400 line-through">{{money .RegularPrice}}</span>{{end}}
+    </div>
+  </div>
+</a>
+{{end}}
+
+{{define "product_grid"}}
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+  {{range .}}{{template "product_card" .}}{{end}}
+</div>
+{{end}}
+
+{{define "pagination"}}
+{{if gt .Page.Pages 1}}
+<nav class="mt-8 flex items-center justify-center gap-2" aria-label="Pagination">
+  {{if .Page.HasPrev}}<a class="btn-secondary btn-sm" href="{{pageURL .BaseURL .Query .Page.Prev}}" hx-get="{{pageURL .BaseURL .Query .Page.Prev}}" hx-target="#results" hx-push-url="true">← Prev</a>{{end}}
+  <span class="px-3 text-sm text-slate-600">Page {{.Page.Page}} of {{.Page.Pages}}</span>
+  {{if .Page.HasNext}}<a class="btn-secondary btn-sm" href="{{pageURL .BaseURL .Query .Page.Next}}" hx-get="{{pageURL .BaseURL .Query .Page.Next}}" hx-target="#results" hx-push-url="true">Next →</a>{{end}}
+</nav>
+{{end}}
+{{end}}

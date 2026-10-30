@@ -1,0 +1,91 @@
+{{define "content"}}
+{{$o := .O}}
+<div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+  {{template "stat" dict "Label" "Total revenue" "Value" (money $o.TotalRevenue) "Sub" "Excludes cancelled & returned"}}
+  {{template "stat" dict "Label" "Today's revenue" "Value" (money $o.TodayRevenue) "Sub" (printf "%d orders today" $o.TodayOrders)}}
+  {{template "stat" dict "Label" "Total orders" "Value" $o.TotalOrders "Sub" (printf "%d pending confirmation" ($o.Status "pending"))}}
+  {{template "stat" dict "Label" "Products" "Value" $o.TotalProducts "Sub" (printf "%d low · %d out of stock" $o.LowStockCount $o.OutOfStock)}}
+</div>
+
+<div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+  <a href="/admin/orders?status=pending" class="card p-4 hover:border-amber-300"><p class="text-xs font-medium uppercase text-slate-500">Pending</p><p class="mt-1 text-2xl font-bold text-amber-600">{{$o.Status "pending"}}</p></a>
+  <a href="/admin/orders?status=processing" class="card p-4 hover:border-sky-300"><p class="text-xs font-medium uppercase text-slate-500">Processing</p><p class="mt-1 text-2xl font-bold text-sky-600">{{$o.Status "processing"}}</p></a>
+  <a href="/admin/orders?status=delivered" class="card p-4 hover:border-emerald-300"><p class="text-xs font-medium uppercase text-slate-500">Delivered</p><p class="mt-1 text-2xl font-bold text-emerald-600">{{$o.Status "delivered"}}</p></a>
+  <a href="/admin/orders?status=cancelled" class="card p-4 hover:border-rose-300"><p class="text-xs font-medium uppercase text-slate-500">Cancelled</p><p class="mt-1 text-2xl font-bold text-rose-600">{{$o.Status "cancelled"}}</p></a>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
+  <section class="card p-5 xl:col-span-2">
+    <h2 class="font-semibold text-slate-900">Sales — last 14 days</h2>
+    <div class="mt-6 flex h-48 items-end gap-1.5" role="img" aria-label="Daily sales bar chart">
+      {{range $o.DailySales}}
+      <div class="group relative flex h-full flex-1 flex-col justify-end">
+        <div class="rounded-t bg-brand-500 transition group-hover:bg-brand-700" style="height: {{pct .Amount $o.MaxDailyAmount}}%; min-height: 2px"></div>
+        <div class="pointer-events-none absolute -top-12 left-1/2 z-10 hidden -translate-x-1/2 whitespace-nowrap rounded bg-slate-900 px-2 py-1 text-xs text-white group-hover:block">{{day .Day}}: {{money .Amount}} · {{.Orders}} orders</div>
+      </div>
+      {{end}}
+    </div>
+    <div class="mt-2 flex justify-between text-xs text-slate-500">
+      {{with index $o.DailySales 0}}<span>{{day .Day}}</span>{{end}}<span>Today</span>
+    </div>
+  </section>
+
+  <section class="card p-5">
+    <h2 class="font-semibold text-slate-900">Order status distribution</h2>
+    <ul class="mt-4 space-y-3 text-sm">
+      {{range orderStatuses}}
+      {{$n := $o.Status .}}
+      <li>
+        <div class="flex justify-between"><span>{{statusLabel .}}</span><span class="font-semibold">{{$n}}</span></div>
+        <div class="mt-1 h-2 rounded-full bg-slate-100"><div class="h-2 rounded-full bg-brand-500" style="width: {{pct $n $o.TotalOrders}}%"></div></div>
+      </li>
+      {{end}}
+    </ul>
+  </section>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
+  <section class="card overflow-hidden xl:col-span-2">
+    <div class="flex items-center justify-between p-5"><h2 class="font-semibold text-slate-900">Recent orders</h2><a href="/admin/orders" class="text-sm font-medium text-brand-700">View all →</a></div>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead><tr><th>Order</th><th>Customer</th><th>Status</th><th class="text-right">Total</th><th>Date</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {{range $o.RecentOrders}}
+          <tr><td><a href="/admin/orders/{{.ID}}" class="font-semibold text-brand-700">{{.Number}}</a></td><td>{{.CustomerName}}<div class="text-xs text-slate-500">{{.Phone}}</div></td>
+              <td><span class="badge {{statusColor .Status}}">{{.StatusLabel}}</span></td><td class="text-right font-medium">{{money .Total}}</td><td class="text-slate-500">{{date .CreatedAt}}</td></tr>
+          {{else}}<tr><td colspan="5" class="py-8 text-center text-slate-500">No orders yet.</td></tr>{{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="space-y-6">
+    <section class="card p-5">
+      <h2 class="font-semibold text-slate-900">Best-selling products</h2>
+      <ol class="mt-3 space-y-2 text-sm">
+        {{range $i, $b := $o.BestSellers}}
+        <li class="flex justify-between gap-2"><span class="truncate">{{add $i 1}}. {{$b.Name}}</span><span class="shrink-0 text-slate-500">{{$b.Quantity}} sold</span></li>
+        {{else}}<li class="text-slate-500">No sales yet.</li>{{end}}
+      </ol>
+    </section>
+    <section class="card p-5">
+      <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Low stock</h2><a href="/admin/products?stock=low" class="text-sm font-medium text-brand-700">All →</a></div>
+      <ul class="mt-3 space-y-2 text-sm">
+        {{range $o.LowStock}}
+        <li class="flex justify-between gap-2"><a href="/admin/products/{{.ProductID}}#variants" class="truncate hover:text-brand-700">{{.ProductName}}{{with .VariantName}} · {{.}}{{end}}</a>
+          <span class="shrink-0 font-semibold {{if le .Available 0}}text-rose-600{{else}}text-amber-600{{end}}">{{.Available}} left</span></li>
+        {{else}}<li class="text-slate-500">All products are well stocked.</li>{{end}}
+      </ul>
+    </section>
+  </div>
+</div>
+{{end}}
+
+{{define "stat"}}
+<div class="card p-5">
+  <p class="text-xs font-medium uppercase tracking-wide text-slate-500">{{.Label}}</p>
+  <p class="mt-2 text-2xl font-bold text-slate-900">{{.Value}}</p>
+  <p class="mt-1 text-xs text-slate-500">{{.Sub}}</p>
+</div>
+{{end}}

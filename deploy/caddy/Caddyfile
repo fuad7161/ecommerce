@@ -1,0 +1,23 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	# Upload limit slightly above MAX_UPLOAD_MB × 10 images.
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy app:8080 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# Redirect www to the apex domain.
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}

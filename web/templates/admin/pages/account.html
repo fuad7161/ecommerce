@@ -1,0 +1,20 @@
+{{define "content"}}
+<div class="grid max-w-3xl gap-6 md:grid-cols-2">
+  <section class="card p-5 text-sm">
+    <h2 class="font-semibold text-slate-900">Profile</h2>
+    <dl class="mt-3 space-y-2">
+      <div><dt class="text-xs uppercase text-slate-500">Name</dt><dd>{{.Admin.Name}}</dd></div>
+      <div><dt class="text-xs uppercase text-slate-500">Email</dt><dd>{{.Admin.Email}}</dd></div>
+      <div><dt class="text-xs uppercase text-slate-500">Role</dt><dd class="capitalize">{{.Admin.Role}}</dd></div>
+    </dl>
+  </section>
+  <form method="post" action="/admin/account/password" class="card space-y-3 p-5">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <h2 class="font-semibold text-slate-900">Change password</h2>
+    <div><label class="label" for="cur">Current password</label><input id="cur" name="current_password" type="password" required autocomplete="current-password" class="input"></div>
+    <div><label class="label" for="np">New password</label><input id="np" name="new_password" type="password" minlength="10" required autocomplete="new-password" class="input"></div>
+    <div><label class="label" for="cp">Confirm new password</label><input id="cp" name="confirm_password" type="password" minlength="10" required autocomplete="new-password" class="input"></div>
+    <button class="btn-primary">Update password</button>
+  </form>
+</div>
+{{end}}

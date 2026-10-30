@@ -1,0 +1,8 @@
+.env
+bin/
+tmp/
+web/static/css/app.css
+*.test
+coverage.out
+.env.production
+backups/

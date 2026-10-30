@@ -1,0 +1,12 @@
+{{define "campaign_card"}}
+<a href="/offers/{{.Slug}}" class="group relative block overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 to-rose-500 text-white shadow-sm transition hover:shadow-lg">
+  {{if .BannerKey}}<img src="{{img .BannerKey}}" alt="" class="absolute inset-0 h-full w-full object-cover opacity-40 transition group-hover:scale-105" loading="lazy">{{end}}
+  <div class="relative p-6 sm:p-8">
+    <p class="text-xs font-semibold uppercase tracking-widest text-white/80">Ends {{date .EndsAt}}</p>
+    <h3 class="mt-1 text-2xl font-extrabold">{{.Title}}</h3>
+    <p class="mt-1 text-lg font-bold">{{if eq .DiscountType "percent"}}{{.DiscountValue}}% off{{else}}Save {{money .DiscountValue}}{{end}}</p>
+    {{with .Description}}<p class="mt-2 line-clamp-2 max-w-md text-sm text-white/90">{{.}}</p>{{end}}
+    <span class="mt-4 inline-flex rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-rose-600">Shop the offer →</span>
+  </div>
+</a>
+{{end}}

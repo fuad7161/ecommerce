@@ -1,0 +1,41 @@
+{{define "actions"}}<a href="/admin/orders/export.csv?{{.Query.Encode}}" class="btn-secondary btn-sm">⬇ Export CSV</a>{{end}}
+
+{{define "content"}}
+<form class="card mb-4 grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-6" action="/admin/orders" method="get"
+      hx-get="/admin/orders" hx-target="#results" hx-push-url="true" hx-trigger="change, submit, keyup changed delay:400ms from:#q">
+  <input id="q" name="q" type="search" value="{{.F.Q}}" placeholder="Order no., phone or name" class="input lg:col-span-2" aria-label="Search">
+  <select name="status" class="input" aria-label="Status">
+    <option value="">All statuses</option>
+    {{range orderStatuses}}<option value="{{.}}" {{if eq $.F.Status .}}selected{{end}}>{{statusLabel .}}</option>{{end}}
+  </select>
+  <select name="payment" class="input" aria-label="Payment method">
+    <option value="">All payments</option>
+    <option value="cod" {{if eq .F.Payment "cod"}}selected{{end}}>Cash on Delivery</option>
+  </select>
+  <input name="from" type="date" value="{{dateInput .F.From}}" class="input" aria-label="From date">
+  <input name="to" type="date" value="{{dateInput .F.To}}" class="input" aria-label="To date">
+</form>
+<div id="results" class="card overflow-hidden">{{template "results" .}}</div>
+{{end}}
+
+{{define "results"}}
+<div class="overflow-x-auto">
+  <table class="table">
+    <thead><tr><th>Order</th><th>Customer</th><th>District</th><th>Status</th><th class="text-right">Items</th><th class="text-right">Total</th><th>Placed</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {{range .Page.Items}}
+      <tr>
+        <td><a href="/admin/orders/{{.ID}}" class="font-semibold text-brand-700 hover:underline">{{.Number}}</a><div class="text-xs uppercase text-slate-400">{{.Payment}}</div></td>
+        <td>{{.CustomerName}}<div class="text-xs text-slate-500">{{.Phone}}</div></td>
+        <td class="text-slate-600">{{.District}}</td>
+        <td><span class="badge {{statusColor .Status}}">{{.StatusLabel}}</span></td>
+        <td class="text-right">{{.ItemCount}}</td>
+        <td class="text-right font-medium">{{money .Total}}</td>
+        <td class="text-slate-500">{{date .CreatedAt}}</td>
+      </tr>
+      {{else}}<tr><td colspan="7" class="py-10 text-center text-slate-500">No orders match these filters.</td></tr>{{end}}
+    </tbody>
+  </table>
+</div>
+{{template "admin_pagination" dict "Page" .Page "Base" "/admin/orders" "Query" .Query}}
+{{end}}

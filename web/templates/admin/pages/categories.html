@@ -1,0 +1,23 @@
+{{define "actions"}}<a href="/admin/categories/new" class="btn-primary btn-sm">+ New category</a>{{end}}
+
+{{define "content"}}
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="table">
+      <thead><tr><th>Name</th><th>Slug</th><th class="text-right">Order</th><th class="text-right">Products</th><th>Status</th><th></th></tr></thead>
+      <tbody class="divide-y divide-slate-100">
+        {{range .Categories}}
+        <tr>
+          <td>{{if .ParentID}}<span class="text-slate-400">└ </span>{{end}}<a href="/admin/categories/{{.ID}}" class="font-medium text-slate-900 hover:text-brand-700">{{.Name}}</a></td>
+          <td class="text-slate-500">{{.Slug}}</td>
+          <td class="text-right">{{.SortOrder}}</td>
+          <td class="text-right">{{.ProductCount}}</td>
+          <td>{{if .Active}}<span class="badge bg-emerald-100 text-emerald-800">Enabled</span>{{else}}<span class="badge bg-slate-100 text-slate-600">Disabled</span>{{end}}</td>
+          <td class="text-right"><a href="/admin/categories/{{.ID}}" class="text-sm font-medium text-brand-700">Edit</a></td>
+        </tr>
+        {{else}}<tr><td colspan="6" class="py-10 text-center text-slate-500">No categories yet.</td></tr>{{end}}
+      </tbody>
+    </table>
+  </div>
+</div>
+{{end}}

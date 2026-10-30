@@ -1,0 +1,64 @@
+{{define "content"}}
+<div class="container-x max-w-3xl py-10">
+  <h1 class="text-2xl font-bold tracking-tight text-slate-900">Track your order</h1>
+  <p class="mt-1 text-sm text-slate-600">Enter your order number and the mobile number you used at checkout.</p>
+
+  <form method="post" action="/track" hx-post="/track" hx-target="#track-result" hx-indicator="#track-spinner" class="card mt-6 grid gap-4 p-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <div><label class="label" for="t-order">Order number</label><input id="t-order" name="order" value="{{.Number}}" required class="input" placeholder="e.g. 261030-48291"></div>
+    <div><label class="label" for="t-phone">Mobile number</label><input id="t-phone" name="phone" type="tel" value="{{.Phone}}" required class="input" placeholder="01XXXXXXXXX"></div>
+    <button type="submit" class="btn-primary">Track <span id="track-spinner" class="htmx-indicator">…</span></button>
+  </form>
+
+  <div id="track-result" class="mt-6" aria-live="polite">{{template "track_result" .}}</div>
+</div>
+{{end}}
+
+{{define "track_result"}}
+{{if .Order}}
+{{$o := .Order}}
+<div class="card p-6">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p class="text-xs uppercase text-slate-500">Order</p>
+      <p class="text-xl font-bold text-slate-900">{{$o.Number}}</p>
+      <p class="text-sm text-slate-500">Placed {{date $o.CreatedAt}}</p>
+    </div>
+    <span class="badge {{statusColor $o.Status}} px-3 py-1 text-sm">{{$o.StatusLabel}}</span>
+  </div>
+
+  {{if or (eq $o.Status "cancelled") (eq $o.Status "returned")}}
+  <p class="mt-6 rounded-lg bg-rose-50 p-4 text-sm text-rose-800">This order was {{lower $o.StatusLabel}}. Contact us if you have questions.</p>
+  {{else}}
+  <ol class="mt-8 grid gap-3 sm:grid-cols-7">
+    {{range trackingSteps}}
+    <li class="flex items-center gap-3 sm:flex-col sm:text-center">
+      <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold {{if $o.StepReached .}}bg-brand-600 text-white{{else}}bg-slate-200 text-slate-500{{end}}">{{if $o.StepReached .}}✓{{else}}•{{end}}</span>
+      <span class="text-xs font-medium {{if $o.StepReached .}}text-slate-900{{else}}text-slate-400{{end}}">{{statusLabel .}}</span>
+    </li>
+    {{end}}
+  </ol>
+  {{end}}
+
+  <div class="mt-8 grid gap-6 sm:grid-cols-2">
+    <div>
+      <h2 class="text-sm font-semibold text-slate-900">Items</h2>
+      <ul class="mt-2 space-y-1 text-sm text-slate-700">
+        {{range $o.Items}}<li>{{.Quantity}} × {{.ProductName}}{{with .VariantName}} ({{.}}){{end}}</li>{{end}}
+      </ul>
+      <p class="mt-3 text-sm font-semibold">Total payable: {{money $o.Total}} (Cash on Delivery)</p>
+    </div>
+    <div>
+      <h2 class="text-sm font-semibold text-slate-900">History</h2>
+      <ul class="mt-2 space-y-2 text-sm">
+        {{range $o.History}}<li class="flex justify-between gap-4"><span>{{statusLabel .To}}</span><span class="text-slate-500">{{date .CreatedAt}}</span></li>{{end}}
+      </ul>
+    </div>
+  </div>
+</div>
+{{else if .Searched}}
+<div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="alert">
+  We couldn't find an order with that number and phone. Please check both and try again.
+</div>
+{{end}}
+{{end}}

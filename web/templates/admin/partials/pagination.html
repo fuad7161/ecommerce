@@ -1,0 +1,11 @@
+{{define "admin_pagination"}}
+{{if gt .Page.Pages 1}}
+<div class="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm">
+  <span class="text-slate-500">{{.Page.Total}} total · page {{.Page.Page}} of {{.Page.Pages}}</span>
+  <div class="flex gap-2">
+    {{if .Page.HasPrev}}<a class="btn-secondary btn-sm" href="{{pageURL .Base .Query .Page.Prev}}" hx-get="{{pageURL .Base .Query .Page.Prev}}" hx-target="#results" hx-push-url="true">← Prev</a>{{end}}
+    {{if .Page.HasNext}}<a class="btn-secondary btn-sm" href="{{pageURL .Base .Query .Page.Next}}" hx-get="{{pageURL .Base .Query .Page.Next}}" hx-target="#results" hx-push-url="true">Next →</a>{{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

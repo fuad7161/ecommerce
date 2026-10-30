@@ -1,0 +1,80 @@
+{{define "content"}}
+{{$s := .Store}}
+<div class="grid gap-6 xl:grid-cols-3">
+  <form method="post" action="/admin/settings" class="card space-y-5 p-5 xl:col-span-2">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <h2 class="font-semibold text-slate-900">Store information</h2>
+    <div class="grid gap-4 sm:grid-cols-2">
+      {{template "sfield" dict "K" "store_name" "L" "Store name" "S" $s}}
+      {{template "sfield" dict "K" "store_tagline" "L" "Tagline" "S" $s}}
+      {{template "sfield" dict "K" "store_phone" "L" "Contact phone" "S" $s}}
+      {{template "sfield" dict "K" "store_email" "L" "Contact email" "S" $s}}
+      <div class="sm:col-span-2">{{template "sfield" dict "K" "store_address" "L" "Store address" "S" $s}}</div>
+      {{template "sfield" dict "K" "facebook_url" "L" "Facebook URL" "S" $s}}
+      {{template "sfield" dict "K" "instagram_url" "L" "Instagram URL" "S" $s}}
+    </div>
+
+    <h2 class="border-t border-slate-200 pt-5 font-semibold text-slate-900">Homepage banner</h2>
+    <div class="grid gap-4">
+      {{template "sfield" dict "K" "hero_title" "L" "Headline" "S" $s}}
+      {{template "sfield" dict "K" "hero_subtitle" "L" "Sub-headline" "S" $s}}
+    </div>
+
+    <h2 class="border-t border-slate-200 pt-5 font-semibold text-slate-900">Checkout &amp; delivery</h2>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label class="label" for="free_delivery_threshold">Free delivery from (৳)</label>
+        <input id="free_delivery_threshold" name="free_delivery_threshold" value="{{plainMoney $s.FreeDeliveryThreshold}}" inputmode="decimal" class="input">
+        <p class="mt-1 text-xs text-slate-500">0 disables free delivery.</p>
+      </div>
+      <label class="flex items-center gap-2 pt-6 text-sm"><input type="checkbox" name="cod_enabled" value="1" {{if $s.CODEnabled}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> Accept Cash on Delivery orders</label>
+    </div>
+
+    <h2 class="border-t border-slate-200 pt-5 font-semibold text-slate-900">SEO &amp; policies</h2>
+    <div class="grid gap-4">
+      {{template "sfield" dict "K" "meta_description" "L" "Default meta description" "S" $s}}
+      <div><label class="label" for="policy_text">Return &amp; delivery policy</label><textarea id="policy_text" name="policy_text" rows="5" class="input">{{$s.Get "policy_text"}}</textarea></div>
+    </div>
+    <button class="btn-primary">Save settings</button>
+  </form>
+
+  <div class="space-y-6">
+  <section class="card p-5 text-sm">
+    <h2 class="font-semibold text-slate-900">Steadfast Courier</h2>
+    {{if .Steadfast.Configured}}
+    <p class="mt-2"><span class="badge bg-emerald-100 text-emerald-800">Connected</span> API key {{.Steadfast.KeyHint}}</p>
+    <p class="mt-2">Balance: <span hx-get="/admin/courier/balance" hx-trigger="load">…</span></p>
+    <p class="mt-2 text-slate-600">Auto-send on confirmation: <b>{{if .Steadfast.AutoSend}}on{{else}}off{{end}}</b> · status sync every {{.Steadfast.Interval}}</p>
+    {{else}}
+    <p class="mt-2"><span class="badge bg-slate-100 text-slate-700">Not configured</span></p>
+    {{end}}
+    <p class="mt-2 text-xs text-slate-500">Credentials are server-side environment variables (<code>STEADFAST_API_KEY</code>, <code>STEADFAST_SECRET_KEY</code>) and are never shown in the browser.</p>
+  </section>
+  <section id="zones" class="card p-5">
+    <h2 class="font-semibold text-slate-900">Delivery zones &amp; charges</h2>
+    <div class="mt-3 space-y-3">
+      {{range .Zones}}
+      <form method="post" action="/admin/settings/zones" class="grid grid-cols-[1fr_6rem] gap-2 rounded-lg border border-slate-200 p-3">
+        <input type="hidden" name="csrf_token" value="{{$.CSRF}}"><input type="hidden" name="id" value="{{.ID}}">
+        <input name="name" value="{{.Name}}" class="input" aria-label="Zone name">
+        <input name="charge" value="{{plainMoney .Charge}}" inputmode="decimal" class="input" aria-label="Charge (৳)">
+        <input name="sort_order" type="number" value="{{.SortOrder}}" class="input" aria-label="Order">
+        <label class="flex items-center gap-1 text-xs"><input type="checkbox" name="active" value="1" {{if .Active}}checked{{end}}> Active</label>
+        <button class="btn-secondary btn-sm col-span-2">Save</button>
+      </form>
+      {{end}}
+      <form method="post" action="/admin/settings/zones" class="grid grid-cols-[1fr_6rem] gap-2 rounded-lg bg-slate-50 p-3">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}"><input type="hidden" name="active" value="1">
+        <input name="name" required placeholder="New zone name" class="input" aria-label="New zone name">
+        <input name="charge" required placeholder="৳" inputmode="decimal" class="input" aria-label="Charge">
+        <button class="btn-secondary btn-sm col-span-2">Add zone</button>
+      </form>
+    </div>
+  </section>
+  </div>
+</div>
+{{end}}
+
+{{define "sfield"}}
+<div><label class="label" for="{{.K}}">{{.L}}</label><input id="{{.K}}" name="{{.K}}" value="{{.S.Get .K}}" class="input"></div>
+{{end}}

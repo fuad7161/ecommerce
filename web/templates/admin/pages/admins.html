@@ -1,0 +1,39 @@
+{{define "content"}}
+<div class="grid gap-6 xl:grid-cols-3">
+  <section class="card overflow-hidden xl:col-span-2">
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+        <tbody class="divide-y divide-slate-100">
+          {{range .Admins}}
+          <tr><td class="font-medium">{{.Name}}</td><td>{{.Email}}</td><td class="capitalize">{{.Role}}</td>
+              <td>{{if .Active}}<span class="badge bg-emerald-100 text-emerald-800">Active</span>{{else}}<span class="badge bg-slate-100 text-slate-600">Disabled</span>{{end}}</td>
+              <td class="text-slate-500">{{with .LastLoginAt}}{{date .}}{{else}}Never{{end}}</td>
+              <td class="text-right"><button type="button" class="text-sm font-medium text-brand-700" data-toggle="edit-{{.ID}}">Edit</button></td></tr>
+          <tr id="edit-{{.ID}}" class="hidden bg-slate-50"><td colspan="6">
+            <form method="post" action="/admin/admins/{{.ID}}" class="grid gap-2 sm:grid-cols-5 sm:items-center">
+              <input type="hidden" name="csrf_token" value="{{$.CSRF}}">
+              <input name="name" value="{{.Name}}" class="input" aria-label="Name">
+              <select name="role" class="input" aria-label="Role"><option value="staff" {{if eq .Role "staff"}}selected{{end}}>Staff</option><option value="admin" {{if eq .Role "admin"}}selected{{end}}>Admin</option></select>
+              <input name="password" type="password" minlength="10" placeholder="New password (optional)" autocomplete="new-password" class="input" aria-label="New password">
+              <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="active" value="1" {{if .Active}}checked{{end}}> Active</label>
+              <button class="btn-secondary btn-sm">Save</button>
+            </form>
+          </td></tr>
+          {{end}}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <form method="post" action="/admin/admins" class="card space-y-3 p-5">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <h2 class="font-semibold text-slate-900">Add a user</h2>
+    <div><label class="label" for="a-name">Name</label><input id="a-name" name="name" required class="input"></div>
+    <div><label class="label" for="a-email">Email</label><input id="a-email" name="email" type="email" required class="input"></div>
+    <div><label class="label" for="a-pass">Password</label><input id="a-pass" name="password" type="password" minlength="10" required autocomplete="new-password" class="input"></div>
+    <div><label class="label" for="a-role">Role</label>
+      <select id="a-role" name="role" class="input"><option value="staff">Staff — orders &amp; customers</option><option value="admin">Admin — full access</option></select></div>
+    <button class="btn-primary w-full">Create user</button>
+  </form>
+</div>
+{{end}}

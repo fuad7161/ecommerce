@@ -1,0 +1,19 @@
+{{define "content"}}
+<form method="post" action="/admin/homepage" class="card max-w-2xl p-5">
+  <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+  <p class="text-sm text-slate-600">Choose which sections appear on the storefront homepage and in what order (lowest number first). Banner text is edited in <a href="/admin/settings" class="font-medium text-brand-700">Store settings</a>; campaign banners in <a href="/admin/offers" class="font-medium text-brand-700">Offers</a>.</p>
+  <table class="table mt-4">
+    <thead><tr><th>Show</th><th>Section</th><th class="w-28">Position</th></tr></thead>
+    <tbody class="divide-y divide-slate-100">
+      {{range .Rows}}
+      <tr>
+        <td><input type="checkbox" name="enabled_{{.Key}}" value="1" {{if .Enabled}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600" aria-label="Show {{.Title}}"></td>
+        <td class="font-medium">{{.Title}}</td>
+        <td><input type="number" name="pos_{{.Key}}" value="{{.Position}}" min="1" class="input py-1" aria-label="Position of {{.Title}}"></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <div class="mt-4 flex gap-3"><button class="btn-primary">Save layout</button><a href="/" target="_blank" class="btn-secondary">View homepage ↗</a></div>
+</form>
+{{end}}
