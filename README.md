@@ -1,7 +1,8 @@
 # Bazaar BD — E-commerce platform
 
 A production-ready e-commerce store for Bangladesh with:
-- guest checkout and Cash on Delivery
+- guest checkout with Cash on Delivery or online payment (SSLCommerz: bKash, Nagad, Rocket, cards, internet banking)
+- optional customer accounts with order history
 - an admin dashboard
 - a campaign/offer engine
 - Steadfast Courier integration
@@ -21,6 +22,35 @@ A production-ready e-commerce store for Bangladesh with:
 - [docs/steadfast.md](docs/steadfast.md)
 - [docs/deployment.md](docs/deployment.md)
 - API: `/api/docs` and `/api/openapi.yaml`
+
+## Online payments (SSLCommerz)
+
+1. Get free sandbox credentials at https://developer.sslcommerz.com/registration/.
+2. Set `SSLCOMMERZ_STORE_ID` and `SSLCOMMERZ_STORE_PASSWORD` in `.env` (`SSLCOMMERZ_SANDBOX=true`), then `make restart`.
+3. Checkout now offers **Pay online**. You can switch it off under Admin → Settings.
+
+How it works:
+- The order is created first, with its stock reserved. The customer then goes to SSLCommerz's hosted page.
+- The order counts as paid only after SSLCommerz's validation API confirms the transaction **and the amount**. The browser return and the IPN (`/payment/sslcommerz/ipn`) only trigger that check.
+- Unpaid online orders can't be confirmed. After `PAYMENT_TIMEOUT` (default 60m) they are cancelled automatically and their stock is released.
+- Paid orders go to Steadfast with a COD amount of ৳0.
+- Late or duplicate payments are recorded and flagged on the order for a refund.
+- IPN needs a public HTTPS `APP_URL`. Locally, the browser return alone completes sandbox payments.
+- The JSON API stays Cash-on-Delivery only, because the hosted gateway needs a browser redirect.
+
+## Customer accounts (optional)
+
+Customers can still buy as guests. An account (email + password, no SMS) adds:
+- **My orders** (`/account`): every order placed while logged in, with live status.
+- **Faster checkout:** name, phone and address are pre-filled from the last order.
+- **Add a past order:** a guest order joins the account only when the customer enters its order number **and** the checkout phone, the same proof `/track` needs. The order confirmation page can also save the order directly, since its signed link proves ownership.
+
+Phone numbers are never verified, so **a phone number alone never reveals any order**. Orders already in another account can't be claimed.
+
+Other details:
+- Customer sessions use their own cookie (`customer_session`, 30 days) and are separate from admin sessions.
+- Changing the password signs out every other device.
+- There is no self-service password reset yet (it needs an email sender). The login page tells customers to contact the store.
 
 ## Quick start (local)
 
@@ -102,6 +132,7 @@ CI (`.github/workflows/ci.yml`) runs gofmt, vet, all Go tests with the race dete
 | Admin auth & permissions | `auth_test.go`, Playwright admin spec |
 | Steadfast integration & API failures | `steadfast/client_test.go`, `courier_integration_test.go` |
 | Order tracking | `TestTrackRequiresMatchingPhone`, Playwright |
+| Customer accounts | `TestOrderPlacedWhileLoggedInBelongsToAccount`, `TestGuestOrderNeedsNumberAndPhoneToClaim`, `accounts_test.go`, `TestSafeNextRejectsOffsiteRedirects` |
 
 ## Production
 

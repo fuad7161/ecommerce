@@ -27,7 +27,10 @@
         <input id="free_delivery_threshold" name="free_delivery_threshold" value="{{plainMoney $s.FreeDeliveryThreshold}}" inputmode="decimal" class="input">
         <p class="mt-1 text-xs text-slate-500">0 disables free delivery.</p>
       </div>
-      <label class="flex items-center gap-2 pt-6 text-sm"><input type="checkbox" name="cod_enabled" value="1" {{if $s.CODEnabled}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> Accept Cash on Delivery orders</label>
+      <div class="space-y-2 pt-6 text-sm">
+        <label class="flex items-center gap-2"><input type="checkbox" name="cod_enabled" value="1" {{if $s.CODEnabled}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> Accept Cash on Delivery orders</label>
+        <label class="flex items-center gap-2"><input type="checkbox" name="online_payment_enabled" value="1" {{if $s.OnlinePaymentEnabled}}checked{{end}} class="h-4 w-4 rounded border-slate-300 text-brand-600"> Accept online payments (SSLCommerz)</label>
+      </div>
     </div>
 
     <h2 class="border-t border-slate-200 pt-5 font-semibold text-slate-900">SEO &amp; policies</h2>
@@ -49,6 +52,17 @@
     <p class="mt-2"><span class="badge bg-slate-100 text-slate-700">Not configured</span></p>
     {{end}}
     <p class="mt-2 text-xs text-slate-500">Credentials are server-side environment variables (<code>STEADFAST_API_KEY</code>, <code>STEADFAST_SECRET_KEY</code>) and are never shown in the browser.</p>
+  </section>
+  <section class="card p-5 text-sm">
+    <h2 class="font-semibold text-slate-900">Online payments (SSLCommerz)</h2>
+    {{if .Payments.Configured}}
+    <p class="mt-2"><span class="badge bg-emerald-100 text-emerald-800">Connected</span>
+      {{if .Payments.Sandbox}}<span class="badge bg-amber-100 text-amber-800">Sandbox: test payments only</span>{{else}}<span class="badge bg-sky-100 text-sky-800">Live</span>{{end}}</p>
+    <p class="mt-2 text-slate-600">bKash, Nagad, Rocket, cards and internet banking. Unpaid online orders are cancelled after {{.Payments.Timeout}}.</p>
+    {{else}}
+    <p class="mt-2"><span class="badge bg-slate-100 text-slate-700">Not configured</span></p>
+    {{end}}
+    <p class="mt-2 text-xs text-slate-500">Credentials are server-side environment variables (<code>SSLCOMMERZ_STORE_ID</code>, <code>SSLCOMMERZ_STORE_PASSWORD</code>, <code>SSLCOMMERZ_SANDBOX</code>).</p>
   </section>
   <section id="zones" class="card p-5">
     <h2 class="font-semibold text-slate-900">Delivery zones &amp; charges</h2>

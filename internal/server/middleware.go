@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/url"
 	"runtime/debug"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 
+	"github.com/fuad71/ecommerce/internal/accounts"
 	"github.com/fuad71/ecommerce/internal/auth"
 	"github.com/fuad71/ecommerce/internal/catalog"
 	"github.com/fuad71/ecommerce/internal/orders"
@@ -64,6 +67,18 @@ func (s *Server) recoverer(next http.Handler) http.Handler {
 	})
 }
 
+// clientIP is the caller's address without the port: the proxy-reported IP when
+// TRUST_PROXY is on, otherwise the TCP peer. Use it for rate limits, logs and audit.
+func clientIP(r *http.Request) string {
+	if ip := middleware.GetClientIP(r.Context()); ip != "" {
+		return ip
+	}
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
 func requestLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -74,21 +89,30 @@ func requestLogger(next http.Handler) http.Handler {
 		}
 		slog.InfoContext(r.Context(), "http",
 			"method", r.Method, "path", r.URL.Path, "status", ww.Status(), "bytes", ww.BytesWritten(),
-			"duration_ms", time.Since(start).Milliseconds(), "ip", r.RemoteAddr,
+			"duration_ms", time.Since(start).Milliseconds(), "ip", clientIP(r),
 			"request_id", middleware.GetReqID(r.Context()))
 	})
 }
 
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h := w.Header()
-		h.Set("X-Content-Type-Options", "nosniff")
-		h.Set("X-Frame-Options", "DENY")
-		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		h.Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "+
-			"img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'")
-		next.ServeHTTP(w, r)
-	})
+// securityHeaders sets a strict CSP. gatewayOrigin (the payment gateway, may be empty) is
+// allowed in form-action because browsers apply it to the redirect after a form POST.
+func securityHeaders(gatewayOrigin string) func(http.Handler) http.Handler {
+	formAction := "'self'"
+	if gatewayOrigin != "" {
+		formAction += " " + gatewayOrigin
+	}
+	csp := "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action " + formAction
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			h := w.Header()
+			h.Set("X-Content-Type-Options", "nosniff")
+			h.Set("X-Frame-Options", "DENY")
+			h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			h.Set("Content-Security-Policy", csp)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func cacheControl(next http.Handler) http.Handler {
@@ -103,7 +127,7 @@ func cacheControl(next http.Handler) http.Handler {
 func (s *Server) rateLimit(name string, limit int, window time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			key := fmt.Sprintf("rl:%s:%s:%d", name, r.RemoteAddr, time.Now().Unix()/int64(window.Seconds()))
+			key := fmt.Sprintf("rl:%s:%s:%d", name, clientIP(r), time.Now().Unix()/int64(window.Seconds()))
 			ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
 			defer cancel()
 			n, err := s.redis.Incr(ctx, key).Result()
@@ -132,7 +156,10 @@ func (s *Server) rateLimit(name string, limit int, window time.Duration) func(ht
 
 type ctxKey int
 
-const adminKey ctxKey = 1
+const (
+	adminKey ctxKey = iota + 1
+	customerKey
+)
 
 func adminFrom(r *http.Request) *auth.Admin {
 	a, _ := r.Context().Value(adminKey).(*auth.Admin)
@@ -177,6 +204,49 @@ func (s *Server) requirePerm(p auth.Permission) func(http.Handler) http.Handler 
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// ---------- Customer accounts ----------
+
+func customerFrom(r *http.Request) *accounts.Account {
+	a, _ := r.Context().Value(customerKey).(*accounts.Account)
+	return a
+}
+
+// loadCustomer resolves the logged-in customer, if any. A session whose epoch is older than
+// the account's (the password was changed elsewhere) is logged out.
+func (s *Server) loadCustomer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if id := s.customerSessions.GetInt64(ctx, "account_id"); id > 0 {
+			a, err := s.accounts.Get(ctx, id)
+			switch {
+			case err == nil && a.SessionEpoch == s.customerSessions.GetInt(ctx, "account_epoch"):
+				r = r.WithContext(context.WithValue(ctx, customerKey, a))
+			case err == nil || errors.Is(err, accounts.ErrNotFound):
+				s.customerSessions.Remove(ctx, "account_id")
+				s.customerSessions.Remove(ctx, "account_epoch")
+			default:
+				slog.ErrorContext(ctx, "load customer", "err", err)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) requireCustomer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if customerFrom(r) == nil {
+			to := "/account/login?next=" + url.QueryEscape(r.URL.RequestURI())
+			if r.Method != http.MethodGet {
+				to = "/account/login"
+			}
+			redirect(w, r, to)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func isHTMX(r *http.Request) bool {

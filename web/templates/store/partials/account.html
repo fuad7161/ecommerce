@@ -1,0 +1,56 @@
+{{/* Building blocks for the customer account pages. */}}
+
+{{define "account_header"}}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <p class="eyebrow">My account</p>
+    <h1 class="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Hi, {{.Customer.FirstName}}</h1>
+    <p class="mt-1 text-sm text-slate-500">{{.Customer.Email}}</p>
+  </div>
+  <form method="post" action="/account/logout">
+    <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+    <button class="btn-secondary btn-sm">Log out</button>
+  </form>
+</div>
+<nav class="mt-6 flex gap-1 border-b border-slate-200" aria-label="Account">
+  {{template "account_tab" dict "URL" "/account" "Label" "My orders" "Active" (eq .Tab "orders")}}
+  {{template "account_tab" dict "URL" "/account/profile" "Label" "Profile & address" "Active" (eq .Tab "profile")}}
+</nav>
+{{template "account_flash" .}}
+{{end}}
+
+{{define "account_tab"}}
+<a href="{{.URL}}" class="-mb-px border-b-2 px-4 py-2.5 text-sm font-semibold transition {{if .Active}}border-brand-600 text-brand-700{{else}}border-transparent text-slate-500 hover:text-slate-800{{end}}" {{if .Active}}aria-current="page"{{end}}>{{.Label}}</a>
+{{end}}
+
+{{define "account_flash"}}
+{{with .Flash}}<div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800" role="status">{{.}}</div>{{end}}
+{{end}}
+
+{{/* acct_field: dict Name Label Type Value Error Auto Placeholder Hint Optional */}}
+{{define "acct_field"}}
+<div>
+  <label class="label" for="{{.Name}}">{{.Label}}{{if .Optional}} <span class="font-normal text-slate-400">(optional)</span>{{end}}</label>
+  <input id="{{.Name}}" name="{{.Name}}" type="{{or .Type "text"}}" value="{{.Value}}" {{if not .Optional}}required{{end}}
+         {{with .Auto}}autocomplete="{{.}}"{{end}} {{with .Placeholder}}placeholder="{{.}}"{{end}}
+         class="input {{if .Error}}input-error{{end}}" {{if .Error}}aria-invalid="true" aria-describedby="{{.Name}}-error"{{end}}>
+  {{with .Error}}<p id="{{$.Name}}-error" class="field-error">{{.}}</p>{{else}}{{with $.Hint}}<p class="mt-1 text-xs text-slate-500">{{.}}</p>{{end}}{{end}}
+</div>
+{{end}}
+
+{{/* Left panel on the login / register pages. */}}
+{{define "account_perks"}}
+<div class="relative hidden overflow-hidden rounded-3xl bg-ink-950 p-8 text-white lg:block">
+  <div class="hero-aurora -right-16 -top-16 h-64 w-64 bg-brand-500/40" aria-hidden="true"></div>
+  <div class="hero-aurora -bottom-20 -left-10 h-56 w-56 bg-indigo-500/30" aria-hidden="true"></div>
+  <div class="relative">
+    <p class="text-xs font-bold uppercase tracking-[.2em] text-brand-300">Why an account?</p>
+    <h2 class="mt-3 text-2xl font-black leading-tight">All your orders,<br>one place.</h2>
+    <ul class="mt-8 space-y-5 text-sm text-slate-300">
+      <li class="flex gap-3"><span class="orb grid h-9 w-9 shrink-0 place-items-center rounded-xl" aria-hidden="true">📦</span><span><b class="block text-white">Order history</b>See every order and its delivery status, no order number needed.</span></li>
+      <li class="flex gap-3"><span class="orb grid h-9 w-9 shrink-0 place-items-center rounded-xl" style="--orb-a: #818cf8; --orb-b: #4338ca" aria-hidden="true">⚡</span><span><b class="block text-white">Faster checkout</b>Your name and address are filled in for you.</span></li>
+      <li class="flex gap-3"><span class="orb grid h-9 w-9 shrink-0 place-items-center rounded-xl" style="--orb-a: #fbbf24; --orb-b: #b45309" aria-hidden="true">🛒</span><span><b class="block text-white">Still optional</b>You can always check out as a guest.</span></li>
+    </ul>
+  </div>
+</div>
+{{end}}

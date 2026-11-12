@@ -156,7 +156,7 @@ func BuildRequest(o *orders.Order, note string) steadfast.CreateOrderRequest {
 		RecipientName:    o.CustomerName,
 		RecipientPhone:   o.Phone,
 		RecipientAddress: address,
-		CODAmount:        json.Number(money.Plain(o.Total)),
+		CODAmount:        json.Number(money.Plain(o.AmountDue())), // 0 when already paid online
 		ItemDescription:  desc,
 		Note:             notes,
 	}
@@ -182,7 +182,7 @@ func (s *Service) Send(ctx context.Context, adminID, orderID int64, note string)
 		ON CONFLICT (order_id) DO UPDATE SET state = 'creating', cod_amount = EXCLUDED.cod_amount,
 			last_error = '', updated_at = now()
 			WHERE courier_consignments.state = 'failed'
-		RETURNING true`, o.ID, o.Number, o.Total, adminID).Scan(&claimed)
+		RETURNING true`, o.ID, o.Number, o.AmountDue(), adminID).Scan(&claimed)
 	if db.IsNoRows(err) {
 		return nil, ErrAlreadySent
 	}

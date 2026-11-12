@@ -15,7 +15,26 @@ var (
 	ErrCartChanged       = errors.New("some items in your cart changed (price, stock or availability); please review your cart")
 	ErrInvalidTransition = errors.New("this status change is not allowed")
 	ErrCODDisabled       = errors.New("cash on delivery is currently unavailable")
+	ErrAwaitingPayment   = errors.New("this order is waiting for online payment and cannot be confirmed yet")
+	// ErrAlreadyInAccount: the order being added is already in the caller's account.
+	ErrAlreadyInAccount = errors.New("this order is already in your account")
 )
+
+const (
+	PaymentCOD    = "cod"
+	PaymentOnline = "online"
+)
+
+// PaymentMethodLabel is the customer-facing name of a payment method.
+func PaymentMethodLabel(m string) string {
+	switch m {
+	case PaymentCOD:
+		return "Cash on Delivery"
+	case PaymentOnline:
+		return "Online payment"
+	}
+	return m
+}
 
 // FieldErrors maps form field names to user-facing messages.
 type FieldErrors map[string]string
@@ -131,15 +150,34 @@ type Order struct {
 	Discount       int64
 	DeliveryCharge int64
 	Total          int64
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
-	Items          []Item
-	History        []StatusChange
-	Notes          []Note
+	PaidAt         *time.Time
+	// AccountID is set when the order belongs to a customer account (nil for guest orders).
+	AccountID *int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Items     []Item
+	History   []StatusChange
+	Notes     []Note
 }
 
 func (o *Order) StatusLabel() string    { return StatusLabel(o.Status) }
 func (o *Order) NextStatuses() []string { return NextStatuses(o.Status) }
+
+func (o *Order) PaymentLabel() string { return PaymentMethodLabel(o.PaymentMethod) }
+func (o *Order) IsPaid() bool         { return o.PaymentStatus == "paid" }
+
+// AmountDue is what the courier must collect on delivery: nothing once paid online.
+func (o *Order) AmountDue() int64 {
+	if o.PaymentMethod == PaymentOnline && o.IsPaid() {
+		return 0
+	}
+	return o.Total
+}
+
+// AwaitingPayment reports whether the customer can (and must) still pay online.
+func (o *Order) AwaitingPayment() bool {
+	return o.PaymentMethod == PaymentOnline && o.PaymentStatus == "unpaid" && o.Status == StatusPending
+}
 
 // StepReached reports whether the order has reached the given happy-path step.
 func (o *Order) StepReached(step string) bool {
@@ -164,17 +202,21 @@ type OrderRow struct {
 func (o OrderRow) StatusLabel() string { return StatusLabel(o.Status) }
 
 type CheckoutInput struct {
-	Name           string
-	Phone          string
-	District       string
-	Area           string
-	Address        string
-	Notes          string
-	ZoneID         int64
-	PaymentMethod  string
-	Confirmed      bool
-	IdempotencyKey string
-	Items          []CartLine
+	Name          string
+	Phone         string
+	District      string
+	Area          string
+	Address       string
+	Notes         string
+	ZoneID        int64
+	PaymentMethod string
+	// OnlineAvailable is set by the caller when the online gateway is configured and enabled.
+	OnlineAvailable bool
+	Confirmed       bool
+	IdempotencyKey  string
+	Items           []CartLine
+	// AccountID links the order to the logged-in customer (0 = guest checkout).
+	AccountID int64
 }
 
 type ListParams struct {

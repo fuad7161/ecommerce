@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="container-x max-w-5xl py-10">
+  {{template "account_header" .}}
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-3">
+    <section class="lg:col-span-2" aria-labelledby="orders-title">
+      <h2 id="orders-title" class="sr-only">My orders</h2>
+      {{with .Orders.Items}}
+      <ul class="space-y-3">
+        {{range .}}
+        <li>
+          <a href="/account/orders/{{.Number}}" class="card group flex flex-wrap items-center gap-x-6 gap-y-2 p-4 transition hover:-translate-y-0.5 hover:shadow-depth-lg sm:p-5">
+            <div class="min-w-0 flex-1">
+              <p class="font-bold tracking-wide text-slate-900">#{{.Number}}</p>
+              <p class="mt-0.5 text-sm text-slate-500">{{date .CreatedAt}} · {{.ItemCount}} item{{if ne .ItemCount 1}}s{{end}}</p>
+            </div>
+            <span class="badge {{statusColor .Status}} px-3 py-1">{{.StatusLabel}}</span>
+            <span class="w-24 text-right font-bold text-slate-900">{{money .Total}}</span>
+            <span class="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600" aria-hidden="true">→</span>
+          </a>
+        </li>
+        {{end}}
+      </ul>
+      {{if or $.Orders.HasPrev $.Orders.HasNext}}
+      <div class="mt-6 flex items-center justify-center gap-3 text-sm">
+        {{if $.Orders.HasPrev}}<a class="btn-secondary btn-sm" href="/account?page={{$.Orders.Prev}}">← Newer</a>{{end}}
+        <span class="text-slate-500">Page {{$.Orders.Page}} of {{$.Orders.Pages}}</span>
+        {{if $.Orders.HasNext}}<a class="btn-secondary btn-sm" href="/account?page={{$.Orders.Next}}">Older →</a>{{end}}
+      </div>
+      {{end}}
+      {{else}}
+      <div class="card p-10 text-center">
+        <div class="orb mx-auto grid h-14 w-14 place-items-center rounded-2xl text-2xl" aria-hidden="true">🛍️</div>
+        <p class="mt-4 font-semibold text-slate-900">No orders yet</p>
+        <p class="mt-1 text-sm text-slate-500">Orders you place while logged in show up here automatically.</p>
+        <a href="/products" class="btn-primary mt-5">Start shopping</a>
+      </div>
+      {{end}}
+    </section>
+
+    <aside>
+      <form method="post" action="/account/orders/claim" class="card space-y-4 p-5" id="claim">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <div>
+          <h2 class="font-semibold text-slate-900">Add a past order</h2>
+          <p class="mt-1 text-sm text-slate-500">Ordered as a guest? Enter the order number and the mobile number you used at checkout.</p>
+        </div>
+        {{with .ClaimError}}<p class="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900" role="alert">{{.}}</p>{{end}}
+        <div><label class="label" for="c-order">Order number</label><input id="c-order" name="order" value="{{.ClaimOrder}}" required class="input" placeholder="e.g. 261030-48291"></div>
+        <div><label class="label" for="c-phone">Mobile number</label><input id="c-phone" name="phone" type="tel" value="{{.ClaimPhone}}" required class="input" placeholder="01XXXXXXXXX"></div>
+        <button class="btn-secondary w-full">Add to my account</button>
+      </form>
+    </aside>
+  </div>
+</div>
+{{end}}

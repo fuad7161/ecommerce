@@ -76,8 +76,14 @@ func (in *CheckoutInput) validate() FieldErrors {
 	if in.ZoneID <= 0 {
 		fe["zone"] = "Please choose a delivery area"
 	}
-	if in.PaymentMethod != "cod" {
-		fe["payment_method"] = "Please choose Cash on Delivery"
+	switch in.PaymentMethod {
+	case PaymentCOD:
+	case PaymentOnline:
+		if !in.OnlineAvailable {
+			fe["payment_method"] = "Online payment is currently unavailable, please choose Cash on Delivery"
+		}
+	default:
+		fe["payment_method"] = "Please choose a payment method"
 	}
 	if !in.Confirmed {
 		fe["confirm"] = "Please confirm your order details"
@@ -100,7 +106,7 @@ func (s *Service) PlaceOrder(ctx context.Context, in CheckoutInput) (*Order, err
 	}
 	if st, err := s.settings.All(ctx); err != nil {
 		return nil, err
-	} else if !st.CODEnabled() {
+	} else if in.PaymentMethod == PaymentCOD && !st.CODEnabled() {
 		return nil, ErrCODDisabled
 	}
 
@@ -151,14 +157,24 @@ func (s *Service) createOrder(ctx context.Context, tx pgx.Tx, in CheckoutInput) 
 		return 0, err
 	}
 
+	var accountID *int64
+	if in.AccountID > 0 {
+		accountID = &in.AccountID
+		// Remember the latest delivery details so the next checkout is pre-filled.
+		if _, err := tx.Exec(ctx, `UPDATE accounts SET phone = $2, district = $3, area = $4, address = $5, updated_at = now()
+			WHERE id = $1`, in.AccountID, in.Phone, in.District, in.Area, in.Address); err != nil {
+			return 0, err
+		}
+	}
+
 	var orderID int64
 	err = tx.QueryRow(ctx, `INSERT INTO orders (order_number, idempotency_key, customer_id, customer_name, phone,
 			delivery_zone_id, zone_name, district, area, address, delivery_notes, payment_method,
-			subtotal, discount_total, delivery_charge, total)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'cod', $12, $13, $14, $15) RETURNING id`,
+			subtotal, discount_total, delivery_charge, total, account_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
 		newOrderNumber(), in.IdempotencyKey, customerID, in.Name, in.Phone, quote.ZoneID, quote.ZoneName,
-		in.District, in.Area, in.Address, in.Notes,
-		quote.Subtotal, quote.Discount, quote.DeliveryCharge, quote.Total).Scan(&orderID)
+		in.District, in.Area, in.Address, in.Notes, in.PaymentMethod,
+		quote.Subtotal, quote.Discount, quote.DeliveryCharge, quote.Total, accountID).Scan(&orderID)
 	if err != nil {
 		return 0, err
 	}
@@ -197,14 +213,14 @@ func newOrderNumber() string {
 
 const orderCols = `o.id, o.order_number, o.customer_id, o.customer_name, o.phone, o.zone_name, o.district, o.area,
 	o.address, o.delivery_notes, o.payment_method, o.payment_status, o.status, o.subtotal, o.discount_total,
-	o.delivery_charge, o.total, o.created_at, o.updated_at`
+	o.delivery_charge, o.total, o.paid_at, o.account_id, o.created_at, o.updated_at`
 
 func (s *Service) loadOrder(ctx context.Context, where string, args ...any) (*Order, error) {
 	var o Order
 	err := s.pool.QueryRow(ctx, `SELECT `+orderCols+` FROM orders o WHERE `+where, args...).Scan(
 		&o.ID, &o.Number, &o.CustomerID, &o.CustomerName, &o.Phone, &o.ZoneName, &o.District, &o.Area,
 		&o.Address, &o.DeliveryNotes, &o.PaymentMethod, &o.PaymentStatus, &o.Status, &o.Subtotal, &o.Discount,
-		&o.DeliveryCharge, &o.Total, &o.CreatedAt, &o.UpdatedAt)
+		&o.DeliveryCharge, &o.Total, &o.PaidAt, &o.AccountID, &o.CreatedAt, &o.UpdatedAt)
 	if db.IsNoRows(err) {
 		return nil, ErrNotFound
 	}
@@ -263,6 +279,80 @@ func (s *Service) Track(ctx context.Context, number, phoneNumber string) (*Order
 	}
 	number = strings.TrimPrefix(strings.TrimSpace(number), "#")
 	return s.loadOrder(ctx, "o.order_number = $1 AND o.phone = $2", number, p)
+}
+
+// ---------- Customer accounts ----------
+
+// ForAccount returns an order only if it belongs to the given account.
+func (s *Service) ForAccount(ctx context.Context, accountID int64, number string) (*Order, error) {
+	if accountID <= 0 {
+		return nil, ErrNotFound
+	}
+	return s.loadOrder(ctx, "o.order_number = $1 AND o.account_id = $2", strings.TrimSpace(number), accountID)
+}
+
+// ListForAccount pages through an account's orders, newest first.
+func (s *Service) ListForAccount(ctx context.Context, accountID int64, page int) (paging.Page[OrderRow], error) {
+	var p paging.Page[OrderRow]
+	var offset int
+	p.Page, p.PerPage, offset = paging.Normalize(page, 10, 10)
+	if err := s.pool.QueryRow(ctx, `SELECT count(*) FROM orders WHERE account_id = $1`, accountID).Scan(&p.Total); err != nil {
+		return p, err
+	}
+	rows, err := s.pool.Query(ctx, `SELECT o.id, o.order_number, o.customer_name, o.phone, o.district,
+			o.status, o.payment_method, (SELECT coalesce(sum(quantity), 0) FROM order_items WHERE order_id = o.id),
+			o.total, o.created_at
+		FROM orders o WHERE o.account_id = $1 ORDER BY o.created_at DESC, o.id DESC LIMIT $2 OFFSET $3`,
+		accountID, p.PerPage, offset)
+	if err != nil {
+		return p, err
+	}
+	p.Items, err = pgx.CollectRows(rows, scanOrderRow)
+	return p, err
+}
+
+// ClaimGuestOrder moves a guest order into an account. The caller must know both the order
+// number and the checkout phone (the same proof tracking needs), so a phone number alone
+// is never enough. Orders already in another account are reported as not found.
+func (s *Service) ClaimGuestOrder(ctx context.Context, accountID int64, number, phoneNumber string) (*Order, error) {
+	p, err := phone.Normalize(phoneNumber)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	return s.claim(ctx, accountID, "order_number = $1 AND phone = $2", strings.TrimPrefix(strings.TrimSpace(number), "#"), p)
+}
+
+// AttachOrder moves an order into an account when ownership was already proven another
+// way (the signed link on the order confirmation page).
+func (s *Service) AttachOrder(ctx context.Context, accountID int64, number string) (*Order, error) {
+	return s.claim(ctx, accountID, "order_number = $1", strings.TrimSpace(number))
+}
+
+func (s *Service) claim(ctx context.Context, accountID int64, where string, args ...any) (*Order, error) {
+	if accountID <= 0 {
+		return nil, ErrNotFound
+	}
+	var id int64
+	err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+		var owner *int64
+		err := tx.QueryRow(ctx, `SELECT id, account_id FROM orders WHERE `+where+` FOR UPDATE`, args...).Scan(&id, &owner)
+		switch {
+		case db.IsNoRows(err):
+			return ErrNotFound
+		case err != nil:
+			return err
+		case owner != nil && *owner == accountID:
+			return ErrAlreadyInAccount
+		case owner != nil:
+			return ErrNotFound
+		}
+		_, err = tx.Exec(ctx, `UPDATE orders SET account_id = $2, updated_at = now() WHERE id = $1`, id, accountID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.OrderByID(ctx, id)
 }
 
 func (s *Service) Notes(ctx context.Context, orderID int64) ([]Note, error) {
@@ -388,77 +478,131 @@ func csvSafe(cells []string) []string {
 // cancelled releases reservations, shipped deducts stock, returned restocks.
 func (s *Service) UpdateStatus(ctx context.Context, adminID, orderID int64, to, note string) error {
 	return db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
-		var from string
-		if err := tx.QueryRow(ctx, `SELECT status FROM orders WHERE id = $1 FOR UPDATE`, orderID).Scan(&from); err != nil {
-			if db.IsNoRows(err) {
-				return ErrNotFound
-			}
+		cur, err := lockOrder(ctx, tx, orderID)
+		if err != nil {
 			return err
 		}
-		if !CanTransition(from, to) {
+		if !CanTransition(cur.status, to) {
 			return ErrInvalidTransition
 		}
+		if to == StatusConfirmed && cur.method == PaymentOnline && cur.payment != "paid" {
+			return ErrAwaitingPayment
+		}
+		return updateStatusTx(ctx, tx, adminID, orderID, cur.status, to, note)
+	})
+}
 
-		type line struct {
-			variantID int64
-			qty       int
-		}
-		rows, err := tx.Query(ctx, `SELECT variant_id, quantity FROM order_items WHERE order_id = $1 AND variant_id IS NOT NULL
-			ORDER BY variant_id`, orderID)
-		if err != nil {
-			return err
-		}
-		lines, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (line, error) {
-			var l line
-			err := r.Scan(&l.variantID, &l.qty)
-			return l, err
-		})
-		if err != nil {
-			return err
-		}
+type lockedOrder struct{ status, method, payment string }
 
-		ref := inventory.Ref{OrderID: orderID, AdminID: adminID, Note: "Order " + StatusLabel(to)}
-		for _, l := range lines {
-			switch to {
-			case StatusCancelled:
-				err = inventory.Release(ctx, tx, l.variantID, l.qty, ref)
-			case StatusShipped:
-				err = inventory.Ship(ctx, tx, l.variantID, l.qty, ref)
-			case StatusReturned:
-				err = inventory.Return(ctx, tx, l.variantID, l.qty, ref)
-			}
+func lockOrder(ctx context.Context, tx pgx.Tx, orderID int64) (lockedOrder, error) {
+	var o lockedOrder
+	err := tx.QueryRow(ctx, `SELECT status, payment_method, payment_status FROM orders WHERE id = $1 FOR UPDATE`, orderID).
+		Scan(&o.status, &o.method, &o.payment)
+	if db.IsNoRows(err) {
+		return o, ErrNotFound
+	}
+	return o, err
+}
+
+// ExpireUnpaidOnline cancels pending online-payment orders that are still unpaid after
+// timeout, releasing their reserved stock. It returns the number of orders cancelled.
+func (s *Service) ExpireUnpaidOnline(ctx context.Context, timeout time.Duration) (int, error) {
+	rows, err := s.pool.Query(ctx, `SELECT id FROM orders WHERE payment_method = 'online' AND payment_status = 'unpaid'
+		AND status = 'pending' AND created_at < $1 ORDER BY id LIMIT 200`, time.Now().Add(-timeout))
+	if err != nil {
+		return 0, err
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[int64])
+	if err != nil {
+		return 0, err
+	}
+	n := 0
+	for _, id := range ids {
+		err := db.InTx(ctx, s.pool, func(tx pgx.Tx) error {
+			cur, err := lockOrder(ctx, tx, id)
 			if err != nil {
 				return err
 			}
+			// Re-check under the lock: the payment may have just been completed.
+			if cur.status != StatusPending || cur.payment != "unpaid" {
+				return errSkip
+			}
+			return updateStatusTx(ctx, tx, 0, id, cur.status, StatusCancelled, "Online payment was not completed in time")
+		})
+		switch {
+		case err == nil:
+			n++
+		case errors.Is(err, errSkip):
+		default:
+			return n, err
 		}
+	}
+	return n, nil
+}
+
+var errSkip = errors.New("skip")
+
+// updateStatusTx applies a validated transition. The caller holds the order row lock.
+func updateStatusTx(ctx context.Context, tx pgx.Tx, adminID, orderID int64, from, to, note string) error {
+	type line struct {
+		variantID int64
+		qty       int
+	}
+	rows, err := tx.Query(ctx, `SELECT variant_id, quantity FROM order_items WHERE order_id = $1 AND variant_id IS NOT NULL
+		ORDER BY variant_id`, orderID)
+	if err != nil {
+		return err
+	}
+	lines, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (line, error) {
+		var l line
+		err := r.Scan(&l.variantID, &l.qty)
+		return l, err
+	})
+	if err != nil {
+		return err
+	}
+
+	ref := inventory.Ref{OrderID: orderID, AdminID: adminID, Note: "Order " + StatusLabel(to)}
+	for _, l := range lines {
 		switch to {
+		case StatusCancelled:
+			err = inventory.Release(ctx, tx, l.variantID, l.qty, ref)
 		case StatusShipped:
-			_, err = tx.Exec(ctx, `UPDATE products p SET sold_count = sold_count + i.quantity
-				FROM order_items i WHERE i.order_id = $1 AND i.product_id = p.id`, orderID)
+			err = inventory.Ship(ctx, tx, l.variantID, l.qty, ref)
 		case StatusReturned:
-			_, err = tx.Exec(ctx, `UPDATE products p SET sold_count = greatest(sold_count - i.quantity, 0)
-				FROM order_items i WHERE i.order_id = $1 AND i.product_id = p.id`, orderID)
+			err = inventory.Return(ctx, tx, l.variantID, l.qty, ref)
 		}
 		if err != nil {
 			return err
 		}
-
-		payment := ""
-		switch to {
-		case StatusDelivered:
-			payment = "paid" // COD collected on delivery
-		case StatusReturned:
-			payment = "refunded"
-		}
-		if _, err := tx.Exec(ctx, `UPDATE orders SET status = $2, updated_at = now(),
-				payment_status = CASE WHEN $3 = '' THEN payment_status ELSE $3 END WHERE id = $1`,
-			orderID, to, payment); err != nil {
-			return err
-		}
-		_, err = tx.Exec(ctx, `INSERT INTO order_status_history (order_id, from_status, to_status, note, admin_id)
-			VALUES ($1, $2, $3, $4, NULLIF($5, 0))`, orderID, from, to, strings.TrimSpace(note), adminID)
+	}
+	switch to {
+	case StatusShipped:
+		_, err = tx.Exec(ctx, `UPDATE products p SET sold_count = sold_count + i.quantity
+			FROM order_items i WHERE i.order_id = $1 AND i.product_id = p.id`, orderID)
+	case StatusReturned:
+		_, err = tx.Exec(ctx, `UPDATE products p SET sold_count = greatest(sold_count - i.quantity, 0)
+			FROM order_items i WHERE i.order_id = $1 AND i.product_id = p.id`, orderID)
+	}
+	if err != nil {
 		return err
-	})
+	}
+
+	payment := ""
+	switch to {
+	case StatusDelivered:
+		payment = "paid" // COD collected on delivery (online orders are already paid)
+	case StatusReturned:
+		payment = "refunded"
+	}
+	if _, err := tx.Exec(ctx, `UPDATE orders SET status = $2, updated_at = now(),
+			payment_status = CASE WHEN $3 = '' THEN payment_status ELSE $3 END WHERE id = $1`,
+		orderID, to, payment); err != nil {
+		return err
+	}
+	_, err = tx.Exec(ctx, `INSERT INTO order_status_history (order_id, from_status, to_status, note, admin_id)
+		VALUES ($1, $2, $3, $4, NULLIF($5, 0))`, orderID, from, to, strings.TrimSpace(note), adminID)
+	return err
 }
 
 func (s *Service) AddNote(ctx context.Context, adminID, orderID int64, body string) error {

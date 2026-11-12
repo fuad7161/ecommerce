@@ -11,6 +11,7 @@
   <select name="payment" class="input" aria-label="Payment method">
     <option value="">All payments</option>
     <option value="cod" {{if eq .F.Payment "cod"}}selected{{end}}>Cash on Delivery</option>
+    <option value="online" {{if eq .F.Payment "online"}}selected{{end}}>Online payment</option>
   </select>
   <input name="from" type="date" value="{{dateInput .F.From}}" class="input" aria-label="From date">
   <input name="to" type="date" value="{{dateInput .F.To}}" class="input" aria-label="To date">

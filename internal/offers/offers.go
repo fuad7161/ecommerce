@@ -5,6 +5,7 @@ package offers
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -60,12 +61,7 @@ func (o *Offer) HasProduct(id int64) bool  { return contains(o.ProductIDs, id) }
 func (o *Offer) HasCategory(id int64) bool { return contains(o.CategoryIDs, id) }
 
 func contains(list []int64, id int64) bool {
-	for _, v := range list {
-		if v == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, id)
 }
 
 // ValidationError maps form fields to messages.

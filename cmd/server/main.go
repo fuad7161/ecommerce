@@ -126,7 +126,7 @@ func serve() error {
 // connectMedia retries briefly because MinIO may still be starting under docker compose.
 func connectMedia(ctx context.Context, cfg *config.Config) (*media.Store, error) {
 	var lastErr error
-	for i := 0; i < 15; i++ {
+	for range 15 {
 		ms, err := media.New(ctx, cfg.MinIOEndpoint, cfg.MinIOAccessKey, cfg.MinIOSecretKey, cfg.MinIOBucket,
 			cfg.MinIOUseSSL, cfg.MaxUploadBytes)
 		if err == nil {

@@ -39,6 +39,13 @@ type Config struct {
 	SteadfastAutoSend     bool
 	SteadfastSyncInterval time.Duration
 
+	// SSLCommerz online payments (bKash, Nagad, cards...). Empty store ID disables them.
+	SSLCommerzStoreID   string
+	SSLCommerzStorePass string
+	SSLCommerzSandbox   bool
+	// PaymentTimeout cancels online orders still unpaid after this long (0 disables).
+	PaymentTimeout time.Duration
+
 	CacheTTL time.Duration
 
 	SessionLifetime time.Duration
@@ -68,6 +75,11 @@ func Load() (*Config, error) {
 		SteadfastAutoSend:     envBool("STEADFAST_AUTO_SEND", false),
 		SteadfastSyncInterval: envDuration("STEADFAST_SYNC_INTERVAL", 30*time.Minute),
 
+		SSLCommerzStoreID:   env("SSLCOMMERZ_STORE_ID", ""),
+		SSLCommerzStorePass: env("SSLCOMMERZ_STORE_PASSWORD", ""),
+		SSLCommerzSandbox:   envBool("SSLCOMMERZ_SANDBOX", true),
+		PaymentTimeout:      envDuration("PAYMENT_TIMEOUT", time.Hour),
+
 		CacheTTL:        envDuration("CACHE_TTL", 60*time.Second),
 		SessionLifetime: envDuration("SESSION_LIFETIME", 12*time.Hour),
 		MaxUploadBytes:  int64(envInt("MAX_UPLOAD_MB", 5)) << 20,
@@ -96,6 +108,10 @@ func (c *Config) IsProduction() bool { return c.Env == "production" }
 
 func (c *Config) SteadfastConfigured() bool {
 	return c.SteadfastAPIKey != "" && c.SteadfastSecretKey != ""
+}
+
+func (c *Config) SSLCommerzConfigured() bool {
+	return c.SSLCommerzStoreID != "" && c.SSLCommerzStorePass != ""
 }
 
 func env(key, def string) string {

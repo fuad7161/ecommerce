@@ -157,10 +157,8 @@ func TestSendCreatesConsignmentOnce(t *testing.T) {
 
 	var wg sync.WaitGroup
 	var ok, dup atomic.Int32
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 5 {
+		wg.Go(func() {
 			_, err := e.courier.Send(ctx, e.adminID, o.ID, "fragile")
 			switch {
 			case err == nil:
@@ -170,7 +168,7 @@ func TestSendCreatesConsignmentOnce(t *testing.T) {
 			default:
 				t.Error(err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if ok.Load() != 1 || dup.Load() != 4 || e.fake.creates.Load() != 1 {

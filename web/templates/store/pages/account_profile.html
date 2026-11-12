@@ -1,0 +1,41 @@
+{{define "content"}}
+<div class="container-x max-w-5xl py-10">
+  {{template "account_header" .}}
+
+  <div class="mt-8 grid gap-6 lg:grid-cols-5">
+    <form method="post" action="/account/profile" novalidate class="card space-y-4 p-6 lg:col-span-3">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <div>
+        <h2 class="font-semibold text-slate-900">Profile &amp; delivery address</h2>
+        <p class="mt-1 text-sm text-slate-500">Used to fill in checkout. It updates automatically each time you order.</p>
+      </div>
+      {{template "acct_field" dict "Name" "name" "Label" "Full name" "Value" (index .Form "name") "Error" (index .Errors "name") "Auto" "name"}}
+      {{template "acct_field" dict "Name" "phone" "Label" "Mobile number" "Type" "tel" "Value" (index .Form "phone") "Error" (index .Errors "phone") "Auto" "tel" "Placeholder" "01XXXXXXXXX" "Optional" true}}
+      <div class="grid gap-4 sm:grid-cols-2">
+        {{template "acct_field" dict "Name" "district" "Label" "District / City" "Value" (index .Form "district") "Error" (index .Errors "district") "Placeholder" "e.g. Dhaka" "Optional" true}}
+        {{template "acct_field" dict "Name" "area" "Label" "Area / Thana" "Value" (index .Form "area") "Error" (index .Errors "area") "Placeholder" "e.g. Mirpur" "Optional" true}}
+      </div>
+      <div>
+        <label class="label" for="address">Full address <span class="font-normal text-slate-400">(optional)</span></label>
+        <textarea id="address" name="address" rows="2" autocomplete="street-address" placeholder="House, road, block, nearby landmark"
+                  class="input {{if index .Errors "address"}}input-error{{end}}">{{index .Form "address"}}</textarea>
+        {{with index .Errors "address"}}<p class="field-error">{{.}}</p>{{end}}
+      </div>
+      <button class="btn-primary">Save profile</button>
+    </form>
+
+    <form method="post" action="/account/password" class="card space-y-4 p-6 lg:col-span-2" id="password">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <div>
+        <h2 class="font-semibold text-slate-900">Change password</h2>
+        <p class="mt-1 text-sm text-slate-500">You'll stay logged in here; other devices are signed out.</p>
+      </div>
+      {{$pe := .PasswordErrors}}
+      {{template "acct_field" dict "Name" "current_password" "Label" "Current password" "Type" "password" "Error" (and $pe (index $pe "current_password")) "Auto" "current-password"}}
+      {{template "acct_field" dict "Name" "new_password" "Label" "New password" "Type" "password" "Error" (and $pe (index $pe "new_password")) "Auto" "new-password" "Hint" "At least 8 characters."}}
+      {{template "acct_field" dict "Name" "new_password_confirm" "Label" "Confirm new password" "Type" "password" "Error" (and $pe (index $pe "new_password_confirm")) "Auto" "new-password"}}
+      <button class="btn-secondary w-full">Change password</button>
+    </form>
+  </div>
+</div>
+{{end}}

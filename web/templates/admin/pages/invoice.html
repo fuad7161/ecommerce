@@ -24,7 +24,8 @@
   <div class="mt-8 grid grid-cols-2 gap-6">
     <div><p class="text-xs font-semibold uppercase text-slate-500">Deliver to</p>
       <p class="mt-1 font-semibold">{{$o.CustomerName}}</p><p>{{$o.Phone}}</p><p>{{$o.Address}}</p><p>{{$o.Area}}, {{$o.District}}</p></div>
-    <div class="text-right"><p class="text-xs font-semibold uppercase text-slate-500">Payment</p><p class="mt-1">Cash on Delivery</p>
+    <div class="text-right"><p class="text-xs font-semibold uppercase text-slate-500">Payment</p><p class="mt-1">{{$o.PaymentLabel}}{{if $o.IsPaid}} · Paid{{end}}</p>
+      <p class="font-semibold">Collect: {{money $o.AmountDue}}</p>
       <p class="mt-2 text-xs font-semibold uppercase text-slate-500">Status</p><p>{{$o.StatusLabel}}</p></div>
   </div>
   <table class="mt-8 w-full">

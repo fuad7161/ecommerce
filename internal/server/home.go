@@ -40,7 +40,7 @@ func findSection(key string) (homeSectionDef, bool) {
 // enabledSections parses the "home_sections" setting (ordered, comma separated).
 func enabledSections(setting string) []string {
 	var out []string
-	for _, k := range strings.Split(setting, ",") {
+	for k := range strings.SplitSeq(setting, ",") {
 		k = strings.TrimSpace(k)
 		if _, ok := findSection(k); ok && !slices.Contains(out, k) {
 			out = append(out, k)

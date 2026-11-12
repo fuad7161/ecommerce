@@ -16,7 +16,7 @@ import (
 var Keys = []string{
 	"store_name", "store_tagline", "store_phone", "store_email", "store_address",
 	"facebook_url", "instagram_url", "hero_title", "hero_subtitle",
-	"free_delivery_threshold", "cod_enabled", "meta_description", "policy_text",
+	"free_delivery_threshold", "cod_enabled", "online_payment_enabled", "meta_description", "policy_text",
 }
 
 type Store map[string]string
@@ -30,6 +30,8 @@ func (s Store) FreeDeliveryThreshold() int64 {
 }
 
 func (s Store) CODEnabled() bool { return s["cod_enabled"] != "false" }
+
+func (s Store) OnlinePaymentEnabled() bool { return s["online_payment_enabled"] != "false" }
 
 type Zone struct {
 	ID        int64

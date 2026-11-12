@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/fuad71/ecommerce/internal/accounts"
 	"github.com/fuad71/ecommerce/internal/auth"
 	"github.com/fuad71/ecommerce/internal/catalog"
 	"github.com/fuad71/ecommerce/internal/db"
@@ -45,7 +46,7 @@ func setup(t *testing.T) *env {
 		t.Fatal(err)
 	}
 	_, err = pool.Exec(ctx, `TRUNCATE courier_events, courier_consignments, offer_products, offer_categories, offers, inventory_movements, order_notes, order_status_history, order_items, orders,
-		customers, product_images, product_variants, products, categories, audit_logs, sessions, admins RESTART IDENTITY CASCADE`)
+		customers, accounts, product_images, product_variants, products, categories, audit_logs, sessions, admins RESTART IDENTITY CASCADE`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +168,7 @@ func TestConcurrentCheckoutNeverOversells(t *testing.T) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	ok, changed := 0, 0
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -310,5 +311,85 @@ func TestOffersApplyBestSingleDiscount(t *testing.T) {
 	page, err := e.catalog.ListProducts(ctx, catalog.ListParams{OnSale: true, MaxPrice: 85000})
 	if err != nil || page.Total != 2 {
 		t.Fatalf("price filters must use the effective price: total=%d err=%v", page.Total, err)
+	}
+}
+
+func (e *env) account(t *testing.T, email string) *accounts.Account {
+	t.Helper()
+	a, err := accounts.NewService(e.pool).Register(context.Background(),
+		accounts.RegisterInput{Name: "Karim Ahmed", Email: email, Password: "password-123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return a
+}
+
+func TestOrderPlacedWhileLoggedInBelongsToAccount(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	sku := e.product(t, "ACC-1", 5000, 5000, 10)
+	a := e.account(t, "karim@example.com")
+
+	in := e.checkout("key-account-order-01", orders.CartLine{SKU: sku, Qty: 1})
+	in.AccountID = a.ID
+	o, err := e.orders.PlaceOrder(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.AccountID == nil || *o.AccountID != a.ID {
+		t.Fatalf("account_id = %v, want %d", o.AccountID, a.ID)
+	}
+	list, err := e.orders.ListForAccount(ctx, a.ID, 1)
+	if err != nil || list.Total != 1 || list.Items[0].Number != o.Number {
+		t.Fatalf("list: %+v err=%v", list, err)
+	}
+	// Checkout remembers the delivery details for next time.
+	got, err := accounts.NewService(e.pool).Get(ctx, a.ID)
+	if err != nil || got.Phone != "01712345678" || got.Area != "Mirpur" {
+		t.Fatalf("saved details: %+v err=%v", got, err)
+	}
+	// Someone else's account can't open it.
+	other := e.account(t, "other@example.com")
+	if _, err := e.orders.ForAccount(ctx, other.ID, o.Number); !errors.Is(err, orders.ErrNotFound) {
+		t.Fatalf("other account read order: %v", err)
+	}
+}
+
+func TestGuestOrderNeedsNumberAndPhoneToClaim(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	sku := e.product(t, "CLAIM-1", 5000, 5000, 10)
+	o, err := e.orders.PlaceOrder(ctx, e.checkout("key-guest-claim-001", orders.CartLine{SKU: sku, Qty: 1}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o.AccountID != nil {
+		t.Fatal("guest order must not belong to an account")
+	}
+	a := e.account(t, "karim@example.com")
+	thief := e.account(t, "thief@example.com")
+
+	// Wrong phone: not found, and the order stays a guest order.
+	if _, err := e.orders.ClaimGuestOrder(ctx, thief.ID, o.Number, "01811111111"); !errors.Is(err, orders.ErrNotFound) {
+		t.Fatalf("wrong phone claim: %v", err)
+	}
+	// Right number + phone (any formatting) works.
+	got, err := e.orders.ClaimGuestOrder(ctx, a.ID, "#"+o.Number, "+880 1712-345678")
+	if err != nil || got.AccountID == nil || *got.AccountID != a.ID {
+		t.Fatalf("claim: %+v err=%v", got, err)
+	}
+	if _, err := e.orders.ClaimGuestOrder(ctx, a.ID, o.Number, "01712345678"); !errors.Is(err, orders.ErrAlreadyInAccount) {
+		t.Fatalf("second claim: %v", err)
+	}
+	// Once claimed, nobody else can take it, even knowing both details.
+	if _, err := e.orders.ClaimGuestOrder(ctx, thief.ID, o.Number, "01712345678"); !errors.Is(err, orders.ErrNotFound) {
+		t.Fatalf("claim of another account's order: %v", err)
+	}
+	if _, err := e.orders.AttachOrder(ctx, thief.ID, o.Number); !errors.Is(err, orders.ErrNotFound) {
+		t.Fatalf("attach of another account's order: %v", err)
+	}
+	// Guest tracking still works for the claimed order.
+	if _, err := e.orders.Track(ctx, o.Number, "01712345678"); err != nil {
+		t.Fatalf("track after claim: %v", err)
 	}
 }

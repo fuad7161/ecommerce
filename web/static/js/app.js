@@ -142,15 +142,118 @@
     if (form.matches('[data-checkout]')) {
       form.querySelector('input[name="cart"]').value = Cart.serialize();
       const btn = form.querySelector('button[type="submit"]');
-      if (btn) { btn.disabled = true; btn.textContent = 'Placing order…'; }
+      const online = form.querySelector('input[name="payment_method"]:checked')?.value === 'online';
+      if (btn) { btn.disabled = true; btn.textContent = online ? 'Redirecting to secure payment…' : 'Placing order…'; }
     }
+  });
+
+  // Checkout button text follows the chosen payment method.
+  function checkoutLabel() {
+    const btn = document.querySelector('form[data-checkout] button[type="submit"]');
+    if (!btn) return;
+    const online = document.querySelector('input[name="payment_method"]:checked')?.value === 'online';
+    btn.textContent = (online ? btn.dataset.labelOnline : btn.dataset.label) || btn.textContent;
+  }
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('[data-pay-option]')) checkoutLabel();
+  });
+
+  // Order confirmation: copy the order number / print (or "Save as PDF") the receipt.
+  document.addEventListener('click', async (e) => {
+    const copyBtn = e.target.closest('[data-copy]');
+    if (copyBtn) {
+      const label = copyBtn.textContent;
+      try {
+        await navigator.clipboard.writeText(copyBtn.dataset.copy);
+        copyBtn.textContent = copyBtn.dataset.copiedLabel || 'Copied';
+      } catch {
+        // Clipboard API needs HTTPS or localhost; fall back to a prompt the user can copy from.
+        window.prompt('Copy your order number:', copyBtn.dataset.copy);
+      }
+      setTimeout(() => { copyBtn.textContent = label; }, 2000);
+      return;
+    }
+    if (e.target.closest('[data-print]')) window.print();
   });
 
   // Re-enable the checkout button if the page is restored from bfcache.
   window.addEventListener('pageshow', () => {
     const btn = document.querySelector('form[data-checkout] button[type="submit"]');
-    if (btn) { btn.disabled = false; btn.textContent = btn.dataset.label || btn.textContent; }
+    if (btn) { btn.disabled = false; checkoutLabel(); }
   });
+
+  // ---------- 3D effects ----------
+  // Pointer-driven, so only on devices with a real hover pointer, and never when the user
+  // asked for reduced motion. CSS reads the custom properties; without JS cards stay flat.
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+  if (!reduceMotion && finePointer) {
+    let tiltEl = null;
+    let scene = null;
+    let frame = 0;
+    let last = null;
+
+    const resetTilt = (el) => {
+      el.classList.remove('is-tilting');
+      el.style.setProperty('--rx', '0deg');
+      el.style.setProperty('--ry', '0deg');
+    };
+
+    const update = () => {
+      frame = 0;
+      const e = last;
+      const el = e.target instanceof Element ? e.target.closest('[data-tilt]') : null;
+      if (tiltEl && tiltEl !== el) resetTilt(tiltEl);
+      tiltEl = el;
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const x = Math.min(Math.max((e.clientX - r.left) / r.width, 0), 1);
+        const y = Math.min(Math.max((e.clientY - r.top) / r.height, 0), 1);
+        const max = parseFloat(el.dataset.tilt) || 8;
+        el.classList.add('is-tilting');
+        el.style.setProperty('--rx', ((0.5 - y) * max).toFixed(2) + 'deg');
+        el.style.setProperty('--ry', ((x - 0.5) * max).toFixed(2) + 'deg');
+        el.style.setProperty('--gx', (x * 100).toFixed(1) + '%');
+        el.style.setProperty('--gy', (y * 100).toFixed(1) + '%');
+      }
+
+      // Hero parallax: -1..1 relative to the scene centre.
+      scene = scene && scene.isConnected ? scene : document.querySelector('[data-parallax-scene]');
+      if (scene) {
+        const r = scene.getBoundingClientRect();
+        if (e.clientY >= r.top && e.clientY <= r.bottom) {
+          scene.style.setProperty('--px', (((e.clientX - r.left) / r.width) * 2 - 1).toFixed(3));
+          scene.style.setProperty('--py', (((e.clientY - r.top) / r.height) * 2 - 1).toFixed(3));
+        }
+      }
+    };
+
+    document.addEventListener('pointermove', (e) => {
+      last = e;
+      if (!frame) frame = requestAnimationFrame(update);
+    }, { passive: true });
+    document.documentElement.addEventListener('pointerleave', () => {
+      if (tiltEl) resetTilt(tiltEl);
+      tiltEl = null;
+    });
+  }
+
+  // Scroll reveal: sections marked data-reveal rise into place as they enter the viewport.
+  if (!reduceMotion && 'IntersectionObserver' in window) {
+    document.documentElement.classList.add('reveal-ready');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (en.isIntersecting) {
+          en.target.classList.add('is-visible');
+          io.unobserve(en.target);
+        }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
+    const observe = () => document.querySelectorAll('[data-reveal]:not(.is-visible)').forEach((el) => io.observe(el));
+    document.addEventListener('DOMContentLoaded', observe);
+    document.addEventListener('htmx:afterSwap', observe);
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('[data-clear-cart]')) Cart.clear();

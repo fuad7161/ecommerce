@@ -143,7 +143,7 @@ func (s *Server) audit(r *http.Request, action, entity string, entityID any, det
 	if a != nil {
 		id = a.ID
 	}
-	audit.Log(r.Context(), s.pool, id, r.RemoteAddr, action, entity, fmt.Sprint(entityID), details)
+	audit.Log(r.Context(), s.pool, id, clientIP(r), action, entity, fmt.Sprint(entityID), details)
 }
 
 // redirect handles both normal and HTMX form posts.
@@ -171,7 +171,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) error {
 	email, password := r.FormValue("email"), r.FormValue("password")
 	a, err := s.auth.Authenticate(r.Context(), email, password)
 	if errors.Is(err, auth.ErrInvalidCredentials) {
-		audit.Log(r.Context(), s.pool, 0, r.RemoteAddr, "auth.login_failed", "admin", "", map[string]any{"email": email})
+		audit.Log(r.Context(), s.pool, 0, clientIP(r), "auth.login_failed", "admin", "", map[string]any{"email": email})
 		s.render(w, r, http.StatusUnauthorized, "admin/login", "layout", map[string]any{
 			"Title": "Admin login", "Error": err.Error(), "Email": email,
 		})
@@ -185,7 +185,7 @@ func (s *Server) loginSubmit(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	s.sessions.Put(r.Context(), "admin_id", a.ID)
-	audit.Log(r.Context(), s.pool, a.ID, r.RemoteAddr, "auth.login", "admin", strconv.FormatInt(a.ID, 10), nil)
+	audit.Log(r.Context(), s.pool, a.ID, clientIP(r), "auth.login", "admin", strconv.FormatInt(a.ID, 10), nil)
 	http.Redirect(w, r, "/admin", http.StatusSeeOther)
 	return nil
 }
@@ -265,8 +265,12 @@ func (s *Server) adminOrder(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	payments, err := s.payments.ForOrder(r.Context(), o.ID)
+	if err != nil {
+		return err
+	}
 	s.page(w, r, "admin/order", map[string]any{"Title": "Order " + o.Number, "Order": o, "Courier": courierData,
-		"CanCourier": adminFrom(r).Can(auth.PermManageCourier)})
+		"CanCourier": adminFrom(r).Can(auth.PermManageCourier), "Payments": payments})
 	return nil
 }
 
@@ -286,6 +290,8 @@ func (s *Server) adminOrderStatus(w http.ResponseWriter, r *http.Request) error 
 	switch {
 	case errors.Is(err, orders.ErrInvalidTransition):
 		s.flash(r, "That status change is not allowed.")
+	case errors.Is(err, orders.ErrAwaitingPayment):
+		s.flash(r, "This order is waiting for online payment. Confirm it after the payment arrives, or cancel it.")
 	case err != nil:
 		return err
 	default:
@@ -369,7 +375,9 @@ func (s *Server) adminSettings(w http.ResponseWriter, r *http.Request) error {
 	}
 	s.page(w, r, "admin/settings", map[string]any{"Title": "Store settings", "Zones": zones,
 		"Steadfast": map[string]any{"Configured": s.courier.Configured(), "KeyHint": keyHint,
-			"AutoSend": s.courier.AutoSend, "Interval": s.cfg.SteadfastSyncInterval.String()}})
+			"AutoSend": s.courier.AutoSend, "Interval": s.cfg.SteadfastSyncInterval.String()},
+		"Payments": map[string]any{"Configured": s.payments.Configured(), "Sandbox": s.cfg.SSLCommerzSandbox,
+			"Timeout": s.cfg.PaymentTimeout.String()}})
 	return nil
 }
 
@@ -382,6 +390,7 @@ func (s *Server) adminSettingsSave(w http.ResponseWriter, r *http.Request) error
 		values[k] = strings.TrimSpace(r.PostForm.Get(k))
 	}
 	values["cod_enabled"] = strconv.FormatBool(r.PostForm.Get("cod_enabled") == "1")
+	values["online_payment_enabled"] = strconv.FormatBool(r.PostForm.Get("online_payment_enabled") == "1")
 	threshold, err := money.Parse(values["free_delivery_threshold"])
 	if values["free_delivery_threshold"] == "" {
 		threshold, err = 0, nil

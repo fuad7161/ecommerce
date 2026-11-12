@@ -16,23 +16,34 @@
   <script src="/static/js/app.js" defer></script>
   {{block "head" .}}{{end}}
 </head>
-<body class="flex min-h-screen flex-col" hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
-  <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+<body class="storefront flex min-h-screen flex-col" hx-headers='{"X-CSRF-Token": "{{.CSRF}}"}'>
+  <header class="no-print sticky top-0 z-30 border-b border-slate-200/60 bg-white/70 shadow-[0_1px_0_rgb(255_255_255/.6)_inset] backdrop-blur-xl backdrop-saturate-150">
     <div class="container-x flex h-16 items-center gap-4">
-      <a href="/" class="flex shrink-0 items-center gap-2">
-        <span class="grid h-9 w-9 place-items-center rounded-lg bg-brand-600 text-lg font-black text-white">{{firstLetter (.Store.Get "store_name")}}</span>
+      <a href="/" class="group flex shrink-0 items-center gap-2.5">
+        <span class="orb grid h-9 w-9 place-items-center rounded-xl text-lg font-black text-white transition duration-300 group-hover:-rotate-6 group-hover:scale-110">{{firstLetter (.Store.Get "store_name")}}</span>
         <span class="hidden text-lg font-extrabold tracking-tight text-slate-900 sm:block">{{.Store.Get "store_name"}}</span>
       </a>
       <form action="/products" method="get" role="search" class="relative mx-auto hidden w-full max-w-xl md:block">
         <label for="nav-search" class="sr-only">Search products</label>
-        <input id="nav-search" name="q" type="search" value="{{with .Params}}{{.Q}}{{end}}" placeholder="Search products, brands, SKU…" class="input rounded-full py-2.5 pl-10">
+        <input id="nav-search" name="q" type="search" value="{{with .Params}}{{.Q}}{{end}}" placeholder="Search products, brands, SKU…" class="input rounded-full border-slate-200/80 bg-white/80 py-2.5 pl-10">
         <svg class="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="m21 21-4.3-4.3M17 10.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
       </form>
       <nav class="ml-auto flex items-center gap-1 md:ml-0">
-        <a href="/products" class="hidden rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 lg:block">Shop</a>
-        <a href="/offers" class="hidden rounded-lg px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 sm:block">Offers</a>
-        <a href="/track" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Track order</a>
-        <a href="/cart" class="relative rounded-lg p-2 text-slate-700 hover:bg-slate-100" aria-label="Cart">
+        <a href="/products" class="hidden rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-900 lg:block">Shop</a>
+        <a href="/offers" class="hidden rounded-xl px-3 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 sm:block">Offers</a>
+        <a href="/track" class="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-900">Track order</a>
+        {{if .Customer}}
+        <a href="/account" class="flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-900 sm:px-3" aria-label="My account">
+          <span class="grid h-7 w-7 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-800" aria-hidden="true">{{firstLetter .Customer.Name}}</span>
+          <span class="hidden max-w-[8rem] truncate sm:inline">{{.Customer.FirstName}}</span>
+        </a>
+        {{else}}
+        <a href="/account/login" class="flex items-center gap-1.5 rounded-xl px-2 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-900/5 hover:text-slate-900 sm:px-3">
+          <svg class="h-5 w-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.5 20.1a7.5 7.5 0 0 1 15 0A17.9 17.9 0 0 1 12 21.75c-2.7 0-5.2-.6-7.5-1.65Z"/></svg>
+          <span class="sr-only sm:not-sr-only">Log in</span>
+        </a>
+        {{end}}
+        <a href="/cart" class="relative rounded-xl p-2 text-slate-700 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-depth" aria-label="Cart">
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13 5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17m0 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-8 2a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"/></svg>
           <span data-cart-count class="absolute -right-0.5 -top-0.5 hidden min-w-[1.25rem] rounded-full bg-rose-600 px-1 text-center text-[11px] font-bold leading-5 text-white">0</span>
         </a>
@@ -47,8 +58,11 @@
     {{template "content" .}}
   </main>
 
-  <footer class="mt-16 border-t border-slate-200 bg-slate-900 text-slate-300">
-    <div class="container-x grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
+  <footer class="no-print relative mt-20 overflow-hidden bg-ink-950 text-slate-300">
+    <div class="hero-aurora -left-32 -top-40 h-80 w-80 bg-brand-600/40" aria-hidden="true"></div>
+    <div class="hero-aurora -right-20 top-10 h-72 w-72 bg-indigo-600/30" aria-hidden="true"></div>
+    <div class="relative h-px bg-gradient-to-r from-transparent via-brand-400/60 to-transparent"></div>
+    <div class="container-x relative grid gap-8 py-14 sm:grid-cols-2 lg:grid-cols-4">
       <div>
         <p class="text-lg font-bold text-white">{{.Store.Get "store_name"}}</p>
         <p class="mt-2 text-sm">{{.Store.Get "store_tagline"}}</p>
@@ -63,6 +77,7 @@
         <p class="font-semibold text-white">Help</p>
         <ul class="mt-2 space-y-1">
           <li><a class="hover:text-white" href="/track">Track your order</a></li>
+          <li><a class="hover:text-white" href="{{if .Customer}}/account{{else}}/account/login{{end}}">My account</a></li>
           <li><a class="hover:text-white" href="/policies">Return &amp; delivery policy</a></li>
           <li><a class="hover:text-white" href="/products">All products</a></li>
         </ul>
@@ -73,14 +88,26 @@
           {{with .Store.Get "facebook_url"}}<li><a class="hover:text-white" href="{{.}}" rel="noopener" target="_blank">Facebook</a></li>{{end}}
           {{with .Store.Get "instagram_url"}}<li><a class="hover:text-white" href="{{.}}" rel="noopener" target="_blank">Instagram</a></li>{{end}}
         </ul>
-        <p class="mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-xs font-semibold text-white">💵 Cash on Delivery available</p>
       </div>
     </div>
-    <div class="border-t border-slate-800 py-4 text-center text-xs text-slate-500">© {{.Year}} {{.Store.Get "store_name"}}. All rights reserved.</div>
+    <div class="container-x relative pb-8">
+      <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">We accept</p>
+      <ul class="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+        {{if .Store.CODEnabled}}<li class="glass rounded-lg px-3 py-1.5 text-white">💵 Cash on Delivery</li>{{end}}
+        {{if .OnlineAvailable}}
+        <li class="glass rounded-lg px-3 py-1.5 text-pink-300">bKash</li>
+        <li class="glass rounded-lg px-3 py-1.5 text-orange-300">Nagad</li>
+        <li class="glass rounded-lg px-3 py-1.5 text-violet-300">Rocket</li>
+        <li class="glass rounded-lg px-3 py-1.5 text-sky-300">Visa · Mastercard</li>
+        <li class="glass rounded-lg px-3 py-1.5 text-slate-200">Internet banking</li>
+        {{end}}
+      </ul>
+    </div>
+    <div class="relative border-t border-white/5 py-5 text-center text-xs text-slate-500">© {{.Year}} {{.Store.Get "store_name"}}. All rights reserved{{if .OnlineAvailable}} · Secure payments by SSLCommerz{{end}}</div>
   </footer>
 
-  <div id="toast" class="fixed inset-x-0 bottom-6 z-50 mx-auto hidden w-fit" role="status" aria-live="polite">
-    <div class="flex items-center gap-3 rounded-full bg-slate-900 px-5 py-3 text-sm font-medium text-white shadow-lg">
+  <div id="toast" class="no-print fixed inset-x-0 bottom-6 z-50 mx-auto hidden w-fit" role="status" aria-live="polite">
+    <div class="flex animate-pop-in items-center gap-3 rounded-full bg-ink-900/90 px-5 py-3 text-sm font-medium text-white shadow-depth-lg ring-1 ring-white/10 backdrop-blur">
       <span data-toast-text></span>
       <a href="/cart" class="font-semibold text-brand-300 hover:text-brand-200">View cart →</a>
     </div>

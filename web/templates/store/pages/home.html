@@ -1,74 +1,118 @@
 {{define "content"}}
-<section class="bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-500 text-white">
-  <div class="container-x grid items-center gap-8 py-12 md:grid-cols-2 md:py-20">
-    <div>
-      <p class="inline-flex rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider">Cash on Delivery · All Bangladesh</p>
-      <h1 class="mt-4 text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">{{.Store.Get "hero_title"}}</h1>
-      <p class="mt-4 max-w-lg text-base text-brand-50 sm:text-lg">{{.Store.Get "hero_subtitle"}}</p>
-      <div class="mt-8 flex flex-wrap gap-3">
-        <a href="/products" class="btn bg-white text-brand-700 hover:bg-brand-50">Shop now</a>
-        <a href="/offers" class="btn border border-white/40 text-white hover:bg-white/10">View offers</a>
-      </div>
+<section class="hero-scene relative isolate overflow-hidden bg-ink-950 text-white" data-parallax-scene>
+  {{/* Ambient light: drifting aurora blobs and a scrolling perspective floor. */}}
+  <div class="pointer-events-none absolute inset-0 -z-10" aria-hidden="true">
+    <div class="parallax absolute inset-0" style="--d: 18">
+      <div class="hero-aurora -left-24 top-0 h-[28rem] w-[28rem] animate-aurora bg-brand-500/60"></div>
+      <div class="hero-aurora right-0 top-24 h-[24rem] w-[24rem] animate-aurora bg-indigo-500/40 [animation-delay:-6s]"></div>
+      <div class="hero-aurora bottom-0 left-1/3 h-[20rem] w-[20rem] animate-aurora bg-amber-400/25 [animation-delay:-12s]"></div>
     </div>
+    <div class="hero-floor"></div>
+    <div class="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-ink-950 to-transparent"></div>
+  </div>
+
+  <div class="container-x grid items-center gap-12 pb-24 pt-14 md:grid-cols-2 md:pb-32 md:pt-20 lg:gap-16">
+    <div class="parallax" style="--d: -6">
+      <p class="glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-100">
+        <span class="relative flex h-2 w-2"><span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-400 opacity-75"></span><span class="relative inline-flex h-2 w-2 rounded-full bg-brand-400"></span></span>
+        {{if .OnlineAvailable}}bKash · Nagad · Card · Cash on Delivery{{else}}Cash on Delivery · All Bangladesh{{end}}
+      </p>
+      <h1 class="text-gradient mt-5 text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl">{{.Store.Get "hero_title"}}</h1>
+      <p class="mt-5 max-w-lg text-base text-slate-300 sm:text-lg">{{.Store.Get "hero_subtitle"}}</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="/products" class="btn-primary px-6 py-3 text-base">Shop now <span aria-hidden="true">→</span></a>
+        <a href="/offers" class="btn glass px-6 py-3 text-base text-white hover:-translate-y-0.5 hover:bg-white/20">View offers</a>
+      </div>
+      <dl class="mt-10 grid max-w-md grid-cols-3 gap-3 text-center">
+        <div class="glass rounded-2xl px-2 py-3"><dt class="text-[11px] uppercase tracking-wider text-slate-400">Delivery</dt><dd class="mt-0.5 text-sm font-bold">Nationwide</dd></div>
+        <div class="glass rounded-2xl px-2 py-3"><dt class="text-[11px] uppercase tracking-wider text-slate-400">Payment</dt><dd class="mt-0.5 text-sm font-bold">{{if .OnlineAvailable}}Secure online{{else}}On delivery{{end}}</dd></div>
+        <div class="glass rounded-2xl px-2 py-3"><dt class="text-[11px] uppercase tracking-wider text-slate-400">Returns</dt><dd class="mt-0.5 text-sm font-bold">Easy</dd></div>
+      </dl>
+    </div>
+
     {{if .Hero}}
-    <div class="hidden grid-cols-2 gap-3 md:grid">
-      {{range .Hero}}
-      <a href="/product/{{.Slug}}" class="overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/20 transition hover:ring-white/50">
-        {{if .ImageKey}}<img src="{{thumb .ImageKey}}" alt="{{.Name}}" class="aspect-square w-full object-cover" width="480" height="480">{{end}}
-      </a>
-      {{end}}
+    <div class="hidden md:block">
+      <div class="hero-stage mx-auto max-w-lg">
+        {{range $i, $p := .Hero}}
+        <a href="/product/{{$p.Slug}}" class="hero-card hero-card-{{$i}} group" aria-label="{{$p.Name}}">
+          <div class="hero-card-face overflow-hidden rounded-3xl bg-white/10 p-2 shadow-[0_40px_80px_-20px_rgb(0_0_0/.7)] ring-1 ring-white/20 backdrop-blur-md transition group-hover:ring-brand-300/70">
+            {{if $p.ImageKey}}<img src="{{thumb $p.ImageKey}}" alt="" class="aspect-square w-full rounded-2xl object-cover" width="480" height="480">
+            {{else}}<div class="orb grid aspect-square w-full place-items-center rounded-2xl text-5xl font-black">{{firstLetter $p.Name}}</div>{{end}}
+            <div class="flex items-center justify-between gap-2 px-2 pb-1 pt-2.5 text-xs">
+              <span class="truncate font-semibold text-white/90">{{$p.Name}}</span>
+              <span class="shrink-0 rounded-full bg-white px-2 py-0.5 font-bold text-ink-950">{{money $p.Price}}</span>
+            </div>
+          </div>
+        </a>
+        {{end}}
+      </div>
     </div>
     {{end}}
   </div>
 </section>
 
-<section class="border-b border-slate-200 bg-white">
-  <div class="container-x grid grid-cols-2 gap-4 py-5 text-sm sm:grid-cols-4">
-    <div class="flex items-center gap-2"><span class="text-xl">🚚</span><span><b class="block text-slate-900">Nationwide delivery</b><span class="text-slate-500">Fast &amp; reliable</span></span></div>
-    <div class="flex items-center gap-2"><span class="text-xl">💵</span><span><b class="block text-slate-900">Cash on delivery</b><span class="text-slate-500">Pay when you receive</span></span></div>
-    <div class="flex items-center gap-2"><span class="text-xl">↩️</span><span><b class="block text-slate-900">Easy returns</b><span class="text-slate-500">See our policy</span></span></div>
-    <div class="flex items-center gap-2"><span class="text-xl">📞</span><span><b class="block text-slate-900">Support</b><span class="text-slate-500">{{.Store.Get "store_phone"}}</span></span></div>
+{{/* Trust chips float over the hero's lower edge. */}}
+<section class="container-x relative z-10 -mt-14">
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    {{template "perk" dict "Icon" "🚚" "Title" "Nationwide delivery" "Sub" "Fast & reliable" "A" "#38bdf8" "B" "#0369a1"}}
+    {{if .OnlineAvailable}}{{template "perk" dict "Icon" "🔒" "Title" "Secure payment" "Sub" "bKash, Nagad, cards" "A" "#f472b6" "B" "#be185d"}}
+    {{else}}{{template "perk" dict "Icon" "💵" "Title" "Cash on delivery" "Sub" "Pay when you receive" "A" "#34d399" "B" "#047857"}}{{end}}
+    {{template "perk" dict "Icon" "↩️" "Title" "Easy returns" "Sub" "See our policy" "A" "#fbbf24" "B" "#b45309"}}
+    {{template "perk" dict "Icon" "📞" "Title" "Support" "Sub" (.Store.Get "store_phone") "A" "#a78bfa" "B" "#6d28d9"}}
   </div>
 </section>
 
-<div class="container-x space-y-14 py-10">
+<div class="container-x space-y-20 py-16">
   {{range .Sections}}
     {{if eq .Key "campaigns"}}
       {{if .Campaigns}}
-      <section>
-        <div class="mb-5 flex items-end justify-between"><h2 class="section-title">{{.Title}}</h2><a href="{{.Link}}" class="text-sm font-semibold text-brand-700 hover:text-brand-800">All offers →</a></div>
-        <div class="grid gap-4 md:grid-cols-2">
+      <section data-reveal>
+        <div class="mb-6 flex items-end justify-between gap-4">
+          <div><p class="eyebrow">Limited time</p><h2 class="section-title mt-1">{{.Title}}</h2></div>
+          <a href="{{.Link}}" class="shrink-0 text-sm font-semibold text-brand-700 hover:text-brand-800">All offers →</a>
+        </div>
+        <div class="grid gap-5 md:grid-cols-2">
           {{range .Campaigns}}{{template "campaign_card" .}}{{end}}
         </div>
       </section>
       {{end}}
     {{else if eq .Key "categories"}}
       {{if .Categories}}
-      <section>
-        <h2 class="section-title">{{.Title}}</h2>
-        <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section data-reveal>
+        <p class="eyebrow">Browse</p>
+        <h2 class="section-title mt-1">{{.Title}}</h2>
+        <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           {{range .Categories}}
-          <a href="/category/{{.Slug}}" class="group card flex items-center gap-3 p-4 transition hover:border-brand-300 hover:shadow-md">
-            {{if .ImageKey}}<img src="{{thumb .ImageKey}}" alt="" class="h-12 w-12 rounded-lg object-cover" loading="lazy">
-            {{else}}<span class="grid h-12 w-12 place-items-center rounded-lg bg-brand-50 text-lg font-black text-brand-700">{{firstLetter .Name}}</span>{{end}}
-            <span>
-              <span class="block font-semibold text-slate-900 group-hover:text-brand-700">{{.Name}}</span>
-              {{if .Children}}<span class="text-xs text-slate-500">{{len .Children}} subcategories</span>{{end}}
+          <a href="/category/{{.Slug}}" data-tilt="12" class="group relative flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-depth hover:shadow-depth-lg">
+            {{if .ImageKey}}<img src="{{thumb .ImageKey}}" alt="" class="lift h-14 w-14 rounded-xl object-cover shadow-depth" loading="lazy">
+            {{else}}<span class="orb lift grid h-14 w-14 shrink-0 place-items-center rounded-xl text-xl font-black text-white">{{firstLetter .Name}}</span>{{end}}
+            <span class="lift min-w-0">
+              <span class="block truncate font-bold text-slate-900 group-hover:text-brand-700">{{.Name}}</span>
+              {{if .Children}}<span class="text-xs text-slate-500">{{len .Children}} subcategories</span>{{else}}<span class="text-xs text-slate-500">Shop now →</span>{{end}}
             </span>
+            <span class="glare"></span>
           </a>
           {{end}}
         </div>
       </section>
       {{end}}
     {{else if .Products}}
-      <section>
-        <div class="mb-5 flex items-end justify-between">
-          <h2 class="section-title">{{.Title}}</h2>
-          <a href="{{.Link}}" class="text-sm font-semibold text-brand-700 hover:text-brand-800">View all →</a>
+      <section data-reveal>
+        <div class="mb-6 flex items-end justify-between gap-4">
+          <div><p class="eyebrow">Picked for you</p><h2 class="section-title mt-1">{{.Title}}</h2></div>
+          <a href="{{.Link}}" class="shrink-0 text-sm font-semibold text-brand-700 hover:text-brand-800">View all →</a>
         </div>
         {{template "product_grid" .Products}}
       </section>
     {{end}}
   {{end}}
+</div>
+{{end}}
+
+{{define "perk"}}
+<div data-tilt="10" class="relative flex items-center gap-3 rounded-2xl border border-white/60 bg-white/90 p-4 shadow-depth-lg backdrop-blur-xl" style="--orb-a: {{.A}}; --orb-b: {{.B}}">
+  <span class="orb lift grid h-11 w-11 shrink-0 place-items-center rounded-xl text-lg" aria-hidden="true">{{.Icon}}</span>
+  <span class="lift min-w-0 text-sm"><b class="block text-slate-900">{{.Title}}</b><span class="block truncate text-slate-500">{{.Sub}}</span></span>
+  <span class="glare"></span>
 </div>
 {{end}}

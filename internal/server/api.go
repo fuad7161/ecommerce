@@ -256,6 +256,11 @@ func (s *Server) apiPlaceOrder(w http.ResponseWriter, r *http.Request) error {
 	if err := decodeJSON(r, &body); err != nil {
 		return err
 	}
+	if body.PaymentMethod == orders.PaymentOnline {
+		// The hosted gateway needs a browser redirect; API clients use cash on delivery.
+		writeJSON(w, http.StatusUnprocessableEntity, apiError{Error: "online payment is only available on the website; use payment_method \"cod\""})
+		return nil
+	}
 	o, err := s.orders.PlaceOrder(r.Context(), orders.CheckoutInput{
 		Name: body.Name, Phone: body.Phone, District: body.District, Area: body.Area, Address: body.Address,
 		Notes: body.Notes, ZoneID: body.ZoneID, PaymentMethod: body.PaymentMethod, Confirmed: body.Confirmed,

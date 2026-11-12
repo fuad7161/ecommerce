@@ -1,21 +1,68 @@
 {{define "content"}}
 {{$o := .Order}}
 <div class="container-x max-w-3xl py-10" data-clear-cart>
-  <div class="card p-6 text-center sm:p-10">
-    <div class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-2xl">✓</div>
-    <h1 class="mt-4 text-2xl font-bold text-slate-900">Thank you, {{$o.CustomerName}}!</h1>
-    <p class="mt-2 text-slate-600">Your order has been placed. We'll call <b>{{$o.Phone}}</b> to confirm it.</p>
+  {{if $o.AwaitingPayment}}
+  <div class="card relative overflow-hidden p-6 text-center sm:p-10">
+    <div class="orb mx-auto grid h-16 w-16 animate-pop-in place-items-center rounded-2xl text-2xl" style="--orb-a: #fbbf24; --orb-b: #b45309" aria-hidden="true">⏳</div>
+    <h1 class="mt-5 text-2xl font-black text-slate-900">
+      {{if eq .Pay "cancelled"}}Payment cancelled{{else if eq .Pay "failed"}}Payment didn't go through{{else if eq .Pay "pending"}}We're confirming your payment…{{else if eq .Pay "error"}}We couldn't reach the payment gateway{{else}}Complete your payment{{end}}
+    </h1>
+    <p class="mx-auto mt-2 max-w-md text-slate-600">
+      {{if eq .Pay "pending"}}Your payment is being verified. Refresh this page in a minute. If money was taken, it will show here as paid.
+      {{else}}Your order <b>{{$o.Number}}</b> is reserved, but it won't be processed until it's paid. No money was taken.{{end}}
+    </p>
+    {{if .OnlineAvailable}}
+    <form method="post" action="/order/{{$o.Number}}/pay" class="mt-6">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="t" value="{{.Token}}">
+      <button class="btn-primary px-8 py-3.5 text-base">🔒 Pay {{money $o.Total}} now</button>
+    </form>
+    {{end}}
+    <p class="mt-3 text-xs text-slate-500">Unpaid orders are cancelled automatically. Need help? Call {{.Store.Get "store_phone"}}.</p>
+  </div>
+  {{else}}
+  <div class="card relative overflow-hidden p-6 text-center sm:p-10">
+    <div class="pointer-events-none absolute -top-24 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-brand-400/25 blur-3xl" aria-hidden="true"></div>
+    <div class="orb relative mx-auto grid h-16 w-16 animate-pop-in place-items-center rounded-2xl text-2xl font-black text-white" aria-hidden="true">✓</div>
+    {{if eq $o.Status "cancelled"}}
+    <h1 class="relative mt-5 text-2xl font-black text-slate-900 sm:text-3xl">This order was cancelled</h1>
+    <p class="relative mt-2 text-slate-600">{{if and (eq $o.PaymentMethod "online") (not $o.IsPaid)}}It wasn't paid in time, so the items were released. You're welcome to order again.{{else}}Contact us at {{.Store.Get "store_phone"}} if you have questions.{{end}}</p>
+    {{else}}
+    <h1 class="relative mt-5 text-2xl font-black text-slate-900 sm:text-3xl">Thank you, {{$o.CustomerName}}!</h1>
+    <p class="relative mt-2 text-slate-600">{{if and (eq $o.PaymentMethod "online") $o.IsPaid}}Payment received. {{end}}Your order has been placed. We'll call <b>{{$o.Phone}}</b> to confirm it.</p>
+    {{end}}
     <div class="mt-6 inline-flex flex-col rounded-xl bg-slate-100 px-6 py-3">
       <span class="text-xs uppercase tracking-wide text-slate-500">Order number</span>
       <span class="text-2xl font-extrabold tracking-wider text-slate-900">{{$o.Number}}</span>
     </div>
+    <div class="no-print mt-3 flex flex-wrap justify-center gap-2">
+      <button type="button" class="btn-secondary btn-sm" data-copy="{{$o.Number}}" data-copied-label="Copied ✓">Copy number</button>
+      <button type="button" class="btn-secondary btn-sm" data-print>Save / print receipt</button>
+    </div>
+    {{if .InAccount}}
+    <p class="mt-3 text-xs text-slate-500">This order is saved in <a href="/account" class="font-semibold text-brand-700 hover:underline">your account</a>.</p>
+    {{else if and .CanSave .Customer}}
+    <form method="post" action="/account/orders/attach" class="no-print mt-4">
+      <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+      <input type="hidden" name="order" value="{{$o.Number}}">
+      <input type="hidden" name="t" value="{{.Token}}">
+      <button class="btn-primary btn-sm">Save this order to my account</button>
+    </form>
+    {{else if .CanSave}}
+    <p class="mt-3 text-xs text-slate-500">Save this number to track your order, or
+      <a href="/account/register?next={{printf "/order/%s?t=%s" $o.Number .Token}}" class="font-semibold text-brand-700 hover:underline">create a free account</a>
+      to keep all your orders in one place.</p>
+    {{else}}
     <p class="mt-3 text-xs text-slate-500">Save this number to track your order.</p>
+    {{end}}
   </div>
+  {{end}}
 
   <div class="card mt-6 p-6">
     <div class="grid gap-6 sm:grid-cols-3">
       <div><p class="text-xs uppercase text-slate-500">Status</p><p class="mt-1"><span class="badge {{statusColor $o.Status}}">{{$o.StatusLabel}}</span></p></div>
-      <div><p class="text-xs uppercase text-slate-500">Payment</p><p class="mt-1 font-medium">Cash on Delivery</p></div>
+      <div><p class="text-xs uppercase text-slate-500">Payment</p><p class="mt-1 font-medium">{{$o.PaymentLabel}}
+        {{if eq $o.PaymentMethod "online"}}{{if $o.IsPaid}}<span class="badge ml-1 bg-emerald-100 text-emerald-800">Paid</span>{{else}}<span class="badge ml-1 bg-amber-100 text-amber-800">Unpaid</span>{{end}}{{end}}</p></div>
       <div><p class="text-xs uppercase text-slate-500">Placed</p><p class="mt-1 font-medium">{{date $o.CreatedAt}}</p></div>
     </div>
     <div class="mt-6">
@@ -37,12 +84,13 @@
       <div class="flex justify-between"><dt class="text-slate-600">Subtotal</dt><dd>{{money $o.Subtotal}}</dd></div>
       {{if gt $o.Discount 0}}<div class="flex justify-between text-emerald-700"><dt>Discount</dt><dd>−{{money $o.Discount}}</dd></div>{{end}}
       <div class="flex justify-between"><dt class="text-slate-600">Delivery</dt><dd>{{if eq $o.DeliveryCharge 0}}Free{{else}}{{money $o.DeliveryCharge}}{{end}}</dd></div>
-      <div class="flex justify-between pt-2 text-lg font-bold"><dt>Total payable (cash)</dt><dd>{{money $o.Total}}</dd></div>
+      <div class="flex justify-between pt-2 text-lg font-bold"><dt>Total</dt><dd>{{money $o.Total}}</dd></div>
+      {{if eq $o.PaymentMethod "online"}}<div class="flex justify-between text-sm font-semibold {{if $o.IsPaid}}text-emerald-700{{end}}"><dt>To pay on delivery</dt><dd>{{money $o.AmountDue}}</dd></div>{{end}}
     </dl>
   </div>
 
-  <div class="mt-6 flex flex-wrap justify-center gap-3">
-    <a href="/track?order={{$o.Number}}" class="btn-secondary">Track this order</a>
+  <div class="no-print mt-6 flex flex-wrap justify-center gap-3">
+    <a href="{{if .InAccount}}/account/orders/{{$o.Number}}{{else}}/track?order={{$o.Number}}{{end}}" class="btn-secondary">Track this order</a>
     <a href="/products" class="btn-primary">Continue shopping</a>
   </div>
 </div>

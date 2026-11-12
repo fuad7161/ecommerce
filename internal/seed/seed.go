@@ -194,8 +194,8 @@ func productImage(client *http.Client, seed string) []byte {
 	sum := h.Sum32()
 	base := color.RGBA{uint8(sum), uint8(sum >> 8), uint8(sum >> 16), 255}
 	img := image.NewRGBA(image.Rect(0, 0, 600, 600))
-	for y := 0; y < 600; y++ {
-		for x := 0; x < 600; x++ {
+	for y := range 600 {
+		for x := range 600 {
 			c := base
 			if (x/60+y/60)%2 == 0 {
 				c.R, c.G, c.B = c.R/2+100, c.G/2+100, c.B/2+100

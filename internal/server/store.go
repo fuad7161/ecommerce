@@ -162,9 +162,14 @@ func newIdempotencyKey() string {
 }
 
 func (s *Server) checkoutPage(w http.ResponseWriter, r *http.Request) error {
+	form := map[string]string{}
+	if c := customerFrom(r); c != nil {
+		// Pre-fill from the account's last delivery details. The customer can still change them.
+		form = map[string]string{"name": c.Name, "phone": c.Phone, "district": c.District, "area": c.Area, "address": c.Address}
+	}
 	return s.renderCheckout(w, r, http.StatusOK, map[string]any{
 		"IdempotencyKey": newIdempotencyKey(),
-		"Form":           map[string]string{},
+		"Form":           form,
 		"Errors":         orders.FieldErrors{},
 	})
 }
@@ -176,6 +181,13 @@ func (s *Server) renderCheckout(w http.ResponseWriter, r *http.Request, status i
 	}
 	data["Zones"] = zones
 	data["Title"] = "Checkout"
+	data["OnlineAvailable"] = s.onlineAvailable(r.Context())
+	if form, ok := data["Form"].(map[string]string); ok && form["payment_method"] == "" {
+		form["payment_method"] = orders.PaymentCOD
+		if data["OnlineAvailable"] == true {
+			form["payment_method"] = orders.PaymentOnline
+		}
+	}
 	s.render(w, r, status, "store/checkout", "layout", data)
 	return nil
 }
@@ -191,6 +203,10 @@ func (s *Server) checkoutSubmit(w http.ResponseWriter, r *http.Request) error {
 		Address: f.Get("address"), Notes: f.Get("notes"), ZoneID: zoneID,
 		PaymentMethod: f.Get("payment_method"), Confirmed: f.Get("confirm") == "1",
 		IdempotencyKey: f.Get("idempotency_key"), Items: parseCart(f.Get("cart")),
+		OnlineAvailable: s.onlineAvailable(r.Context()),
+	}
+	if c := customerFrom(r); c != nil {
+		in.AccountID = c.ID
 	}
 	order, err := s.orders.PlaceOrder(r.Context(), in)
 	if err != nil {
@@ -214,8 +230,12 @@ func (s *Server) checkoutSubmit(w http.ResponseWriter, r *http.Request) error {
 		}
 		return s.renderCheckout(w, r, http.StatusUnprocessableEntity, data)
 	}
-	slog.InfoContext(r.Context(), "order placed", "order", order.Number, "total", order.Total)
-	http.Redirect(w, r, "/order/"+order.Number+"?t="+s.orderToken(order.Number), http.StatusSeeOther)
+	slog.InfoContext(r.Context(), "order placed", "order", order.Number, "total", order.Total, "payment", order.PaymentMethod)
+	if order.AwaitingPayment() {
+		s.redirectToGateway(w, r, order)
+		return nil
+	}
+	http.Redirect(w, r, s.orderURL(order.Number, ""), http.StatusSeeOther)
 	return nil
 }
 
@@ -226,9 +246,13 @@ func (s *Server) orderToken(number string) string {
 	return hex.EncodeToString(m.Sum(nil))[:32]
 }
 
+func (s *Server) validOrderToken(number, token string) bool {
+	return number != "" && hmac.Equal([]byte(token), []byte(s.orderToken(number)))
+}
+
 func (s *Server) orderConfirmation(w http.ResponseWriter, r *http.Request) error {
 	number := chi.URLParam(r, "number")
-	if !hmac.Equal([]byte(r.URL.Query().Get("t")), []byte(s.orderToken(number))) {
+	if !s.validOrderToken(number, r.URL.Query().Get("t")) {
 		return orders.ErrNotFound
 	}
 	o, err := s.orders.OrderByNumber(r.Context(), number)
@@ -236,7 +260,15 @@ func (s *Server) orderConfirmation(w http.ResponseWriter, r *http.Request) error
 		return err
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	s.page(w, r, "store/order", map[string]any{"Order": o, "Title": "Order " + o.Number})
+	data := map[string]any{"Order": o, "Title": "Order " + o.Number,
+		"Token": s.orderToken(o.Number), "Pay": r.URL.Query().Get("pay"), "OnlineAvailable": s.onlineAvailable(r.Context())}
+	if c := customerFrom(r); c != nil && o.AccountID != nil && *o.AccountID == c.ID {
+		data["InAccount"] = true
+	} else if o.AccountID == nil {
+		// Guest order: offer to save it to an account (the signed link proves ownership).
+		data["CanSave"] = true
+	}
+	s.page(w, r, "store/order", data)
 	return nil
 }
 

@@ -1,0 +1,26 @@
+{{define "content"}}
+<div class="container-x py-10 sm:py-16">
+  <div class="mx-auto grid max-w-5xl items-stretch gap-8 lg:grid-cols-2">
+    {{template "account_perks" .}}
+    <div class="card p-6 sm:p-10">
+      <p class="eyebrow">Takes 30 seconds</p>
+      <h1 class="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Create an account</h1>
+      <p class="mt-1 text-sm text-slate-600">Already have one? <a href="/account/login?next={{.Next}}" class="font-semibold text-brand-700 hover:underline">Log in</a></p>
+      <form method="post" action="/account/register" novalidate class="mt-6 space-y-4">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <input type="hidden" name="next" value="{{.Next}}">
+        {{if .Errors}}<p class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert">Please fix the highlighted fields.</p>{{end}}
+        {{template "acct_field" dict "Name" "name" "Label" "Full name" "Value" (index .Form "name") "Error" (index .Errors "name") "Auto" "name" "Placeholder" "e.g. Rahim Uddin"}}
+        {{template "acct_field" dict "Name" "email" "Label" "Email" "Type" "email" "Value" (index .Form "email") "Error" (index .Errors "email") "Auto" "email" "Placeholder" "you@example.com"}}
+        {{template "acct_field" dict "Name" "phone" "Label" "Mobile number" "Type" "tel" "Value" (index .Form "phone") "Error" (index .Errors "phone") "Auto" "tel" "Placeholder" "01XXXXXXXXX" "Optional" true "Hint" "Used to fill in checkout for you."}}
+        <div class="grid gap-4 sm:grid-cols-2">
+          {{template "acct_field" dict "Name" "password" "Label" "Password" "Type" "password" "Error" (index .Errors "password") "Auto" "new-password" "Hint" "At least 8 characters."}}
+          {{template "acct_field" dict "Name" "password_confirm" "Label" "Confirm password" "Type" "password" "Error" (index .Errors "password_confirm") "Auto" "new-password"}}
+        </div>
+        <button class="btn-primary w-full py-3">Create account</button>
+      </form>
+      <p class="mt-6 text-xs text-slate-500">Ordered before as a guest? After signing up you can add those orders to your account with the order number and the phone you used.</p>
+    </div>
+  </div>
+</div>
+{{end}}

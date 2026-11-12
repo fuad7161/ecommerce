@@ -1,28 +1,33 @@
 {{define "product_card"}}
-<a href="/product/{{.Slug}}" class="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-  <div class="relative aspect-square overflow-hidden bg-slate-100">
+<a href="/product/{{.Slug}}" data-tilt="10" class="group relative flex flex-col rounded-2xl border border-slate-200/70 bg-white shadow-depth hover:shadow-depth-lg">
+  <div class="lift relative m-2 mb-0 aspect-square overflow-hidden rounded-xl bg-gradient-to-br from-slate-100 to-slate-200">
     {{if .ImageKey}}
-    <img src="{{thumb .ImageKey}}" alt="{{.Name}}" loading="lazy" decoding="async" width="480" height="480" class="h-full w-full object-cover transition duration-300 group-hover:scale-105">
+    <img src="{{thumb .ImageKey}}" alt="{{.Name}}" loading="lazy" decoding="async" width="480" height="480" class="h-full w-full object-cover transition duration-500 group-hover:scale-110">
     {{else}}
-    <div class="grid h-full w-full place-items-center text-4xl font-black text-slate-300">{{firstLetter .Name}}</div>
+    <div class="grid h-full w-full place-items-center text-5xl font-black text-slate-300">{{firstLetter .Name}}</div>
     {{end}}
-    {{if .OnSale}}<span class="badge absolute left-2 top-2 bg-rose-600 text-white">-{{.DiscountPercent}}%</span>{{end}}
-    {{if le .Available 0}}<span class="badge absolute right-2 top-2 bg-slate-900/80 text-white">Out of stock</span>
-    {{else if .OfferTitle}}<span class="badge absolute bottom-2 left-2 max-w-[90%] truncate bg-amber-400 text-amber-950">🎉 {{.OfferTitle}}</span>{{end}}
+    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/25 to-transparent opacity-0 transition duration-300 group-hover:opacity-100"></div>
+    {{if and (gt .Available 0) .OfferTitle}}<span class="badge absolute bottom-2 left-2 max-w-[90%] truncate bg-amber-400 px-2.5 py-1 text-amber-950 shadow-lg shadow-amber-500/40">🎉 {{.OfferTitle}}</span>{{end}}
   </div>
-  <div class="flex flex-1 flex-col p-3">
-    {{with .CategoryName}}<p class="text-xs text-slate-500">{{.}}</p>{{end}}
-    <h3 class="mt-0.5 line-clamp-2 text-sm font-semibold text-slate-900">{{.Name}}</h3>
-    <div class="mt-auto flex items-baseline gap-2 pt-2">
-      <span class="text-base font-bold text-brand-700">{{money .Price}}</span>
-      {{if .OnSale}}<span class="text-xs text-slate-400 line-through">{{money .RegularPrice}}</span>{{end}}
+  {{if .OnSale}}<span class="badge lift-more absolute left-4 top-4 bg-gradient-to-br from-rose-500 to-rose-700 px-2.5 py-1 text-white shadow-lg shadow-rose-600/40">-{{.DiscountPercent}}%</span>{{end}}
+  {{if le .Available 0}}<span class="badge lift-more absolute right-4 top-4 bg-ink-900/85 px-2.5 py-1 text-white backdrop-blur">Out of stock</span>{{end}}
+  <div class="lift flex flex-1 flex-col p-3.5">
+    {{with .CategoryName}}<p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{{.}}</p>{{end}}
+    <h3 class="mt-0.5 line-clamp-2 text-sm font-semibold text-slate-900 group-hover:text-brand-700">{{.Name}}</h3>
+    <div class="mt-auto flex items-end justify-between gap-2 pt-3">
+      <div class="flex flex-wrap items-baseline gap-x-2">
+        <span class="text-lg font-extrabold text-slate-900">{{money .Price}}</span>
+        {{if .OnSale}}<span class="text-xs text-slate-400 line-through">{{money .RegularPrice}}</span>{{end}}
+      </div>
+      <span class="grid h-8 w-8 shrink-0 translate-y-1 place-items-center rounded-full bg-brand-600 text-white opacity-0 shadow-glow transition duration-300 group-hover:translate-y-0 group-hover:opacity-100" aria-hidden="true">→</span>
     </div>
   </div>
+  <span class="glare"></span>
 </a>
 {{end}}
 
 {{define "product_grid"}}
-<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
   {{range .}}{{template "product_card" .}}{{end}}
 </div>
 {{end}}

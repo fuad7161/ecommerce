@@ -1,0 +1,25 @@
+{{define "content"}}
+<div class="container-x py-10 sm:py-16">
+  <div class="mx-auto grid max-w-5xl items-stretch gap-8 lg:grid-cols-2">
+    {{template "account_perks" .}}
+    <div class="card p-6 sm:p-10">
+      <p class="eyebrow">Welcome back</p>
+      <h1 class="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">Log in</h1>
+      <p class="mt-1 text-sm text-slate-600">New here? <a href="/account/register?next={{.Next}}" class="font-semibold text-brand-700 hover:underline">Create an account</a></p>
+      {{template "account_flash" .}}
+      <form method="post" action="/account/login" class="mt-6 space-y-4">
+        <input type="hidden" name="csrf_token" value="{{.CSRF}}">
+        <input type="hidden" name="next" value="{{.Next}}">
+        {{with .Error}}<p class="rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700" role="alert">{{.}}</p>{{end}}
+        <div><label class="label" for="email">Email</label><input id="email" name="email" type="email" value="{{.Email}}" required autofocus autocomplete="username" class="input" placeholder="you@example.com"></div>
+        <div><label class="label" for="password">Password</label><input id="password" name="password" type="password" required autocomplete="current-password" class="input"></div>
+        <button class="btn-primary w-full py-3">Log in</button>
+      </form>
+      <p class="mt-6 text-xs text-slate-500">Forgot your password? Call or WhatsApp us at {{.Store.Get "store_phone"}} and we'll help you get back in.</p>
+      <div class="mt-6 border-t border-slate-200 pt-6 text-center text-sm text-slate-600">
+        No account? You can still <a href="/checkout" class="font-semibold text-slate-900 hover:underline">check out as a guest</a> or <a href="/track" class="font-semibold text-slate-900 hover:underline">track an order</a>.
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

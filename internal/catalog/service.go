@@ -440,7 +440,7 @@ func (s *Service) Related(ctx context.Context, p *Product, limit int) ([]Product
 // ParseSpecs reads "Name: Value" lines from a textarea.
 func ParseSpecs(text string) []Spec {
 	var out []Spec
-	for _, line := range strings.Split(text, "\n") {
+	for line := range strings.SplitSeq(text, "\n") {
 		k, v, ok := strings.Cut(line, ":")
 		k, v = strings.TrimSpace(k), strings.TrimSpace(v)
 		if ok && k != "" && v != "" {

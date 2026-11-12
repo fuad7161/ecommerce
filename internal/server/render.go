@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/url"
 	"path"
@@ -91,8 +92,14 @@ func (s *Server) baseData(r *http.Request, data map[string]any) {
 	data["Path"] = r.URL.Path
 	data["Year"] = time.Now().Year()
 	data["AppURL"] = s.cfg.AppURL
+	if _, ok := data["OnlineAvailable"]; !ok {
+		data["OnlineAvailable"] = s.onlineAvailable(r.Context())
+	}
 	if a := adminFrom(r); a != nil {
 		data["Admin"] = a
+	}
+	if c := customerFrom(r); c != nil {
+		data["Customer"] = c
 	}
 	if _, ok := data["Flash"]; !ok && strings.HasPrefix(r.URL.Path, "/admin") {
 		data["Flash"] = s.popFlash(r)
@@ -111,9 +118,10 @@ func (s *Server) flash(r *http.Request, msg string) {
 }
 
 var funcs = template.FuncMap{
-	"money":       money.Format,
-	"plainMoney":  money.Plain,
-	"statusLabel": orders.StatusLabel,
+	"money":        money.Format,
+	"plainMoney":   money.Plain,
+	"statusLabel":  orders.StatusLabel,
+	"paymentLabel": orders.PaymentMethodLabel,
 	"img": func(key string) string {
 		if key == "" {
 			return ""
@@ -164,9 +172,7 @@ var funcs = template.FuncMap{
 	// pageURL rewrites the "page" query parameter of the current query string.
 	"pageURL": func(base string, q url.Values, page int) string {
 		v := url.Values{}
-		for k, vals := range q {
-			v[k] = vals
-		}
+		maps.Copy(v, q)
 		v.Set("page", strconv.Itoa(page))
 		return base + "?" + v.Encode()
 	},

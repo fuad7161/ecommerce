@@ -1,0 +1,33 @@
+{{define "content"}}
+{{$o := .Order}}
+<div class="container-x max-w-5xl py-10">
+  {{template "account_header" .}}
+
+  <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+    <a href="/account" class="text-sm font-semibold text-slate-600 hover:text-slate-900">← All orders</a>
+    {{with .PayURL}}<a href="{{.}}" class="btn-primary btn-sm">🔒 Complete payment</a>{{end}}
+  </div>
+
+  <div class="mt-4">{{template "track_result" .}}</div>
+
+  <div class="card mt-6 grid gap-6 p-6 sm:grid-cols-2">
+    <div>
+      <p class="text-xs uppercase text-slate-500">Delivery address</p>
+      <p class="mt-1 text-sm">{{$o.CustomerName}}, {{$o.Phone}}<br>{{$o.Address}}, {{$o.Area}}, {{$o.District}}<br><span class="text-slate-500">{{$o.ZoneName}}</span></p>
+      {{with $o.DeliveryNotes}}<p class="mt-1 text-sm text-slate-500">Note: {{.}}</p>{{end}}
+    </div>
+    <dl class="space-y-1.5 text-sm">
+      <div class="flex justify-between"><dt class="text-slate-600">Subtotal</dt><dd>{{money $o.Subtotal}}</dd></div>
+      {{if gt $o.Discount 0}}<div class="flex justify-between text-emerald-700"><dt>Discount</dt><dd>−{{money $o.Discount}}</dd></div>{{end}}
+      <div class="flex justify-between"><dt class="text-slate-600">Delivery</dt><dd>{{if eq $o.DeliveryCharge 0}}Free{{else}}{{money $o.DeliveryCharge}}{{end}}</dd></div>
+      <div class="flex justify-between border-t border-slate-200 pt-2 font-bold"><dt>Total</dt><dd>{{money $o.Total}}</dd></div>
+    </dl>
+  </div>
+
+  {{with $o.Items}}
+  <div class="mt-6 flex flex-wrap gap-2">
+    {{range .}}{{if .ProductSlug}}<a href="/product/{{.ProductSlug}}" class="btn-secondary btn-sm">Buy {{truncate .ProductName 28}} again</a>{{end}}{{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}

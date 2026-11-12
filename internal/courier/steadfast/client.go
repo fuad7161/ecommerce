@@ -256,11 +256,12 @@ func errorMessage(body []byte) string {
 	if json.Unmarshal(body, &e) != nil || (e.Message == "" && len(e.Errors) == 0) {
 		return truncate(string(body), 300)
 	}
-	msg := e.Message
+	var msg strings.Builder
+	msg.WriteString(e.Message)
 	for field, list := range e.Errors {
-		msg += fmt.Sprintf(" [%s: %s]", field, strings.Join(list, ", "))
+		fmt.Fprintf(&msg, " [%s: %s]", field, strings.Join(list, ", "))
 	}
-	return msg
+	return msg.String()
 }
 
 func truncate(s string, n int) string {
